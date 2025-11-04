@@ -539,6 +539,7 @@ body {
     .hero-visual {
         order: -1;
     }
+}
 
     .hero-floating {
         position: absolute;
