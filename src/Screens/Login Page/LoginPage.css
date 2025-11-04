@@ -1,160 +1,68 @@
-/* src/components/LoginPage.css */
-
-.login-container {
-    justify-content: center;
-    align-items: center;
-    background-color: #111111;
-    margin-top: 10%;
+.login-page .login-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
-label {
-    color: white;
+.login-page .forgot-link {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
 }
 
-.login-form {
-    display: flex;
-    flex-direction: column;
-    width: 300px;
-    padding: 20px;
+.login-page .forgot-link:hover {
+  color: var(--color-primary);
 }
 
-
-
-.login-form label {
-    margin-bottom: 20px;
+.login-page .auth-social {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
 }
 
-.centerDiv-Login {
-    display: flex;
-    margin: 3%;
-    background-color: #161616;
-    justify-content: center;
-    flex-direction: column;
-    border-radius: 30px;
+.login-page .social-button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  transition: transform var(--transition-base),
+    border-color var(--transition-base),
+    color var(--transition-base);
 }
 
-main {
-    min-height: 650px;
+.login-page .social-button img {
+  height: 24px;
+  width: 24px;
 }
 
-section {
-    justify-content: center;
-    width: 50%;
+.login-page .social-button:hover {
+  border-color: rgba(135, 49, 228, 0.6);
+  color: var(--color-primary);
+  transform: translateY(-1px);
 }
 
-.logoSect {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+.login-page .social-button--google {
+  background: #ffffff;
+  color: #111111;
 }
 
-.dividerVert {
-    width: 1px;
-    background-color: #FFFFFF;
-    margin: 20px 0;
+.login-page .social-button--google:hover {
+  color: #3c0f4b;
 }
 
-.dividerHori {
-    height: 1px;
-    background-color: #FFFFFF;
-    margin: 20px 0;
+.login-page .social-button--x {
+  background: #000000;
 }
 
-.loginContent {
-    display: flex;
-    flex-flow: column;
-    justify-content: center;
-    padding: 5% 0%;
-    margin-left: 10%;
-    text-align: center;
-    align-items: center;
-    width: 50%;
-    max-width: 30%;
+.login-page .sign-up-cta {
+  margin-top: 0.5rem;
 }
 
-.logoPngCenter{
-    max-width: 500px;
-    max-height: 500px;
-}
-
-.login-form input[type="text"], .login-form input[type="password"] {
-    padding: 20px;
-    height: 25%;
-    border-radius: 15px;
-    margin-bottom: 5%;
-    background-color: #494949;
-    color: white;
-    border-width: 0;
-}
-
-.submitButton {
-    background-color: #3C0F4B;
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    margin: 10px;
-    border-radius: 10px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: background-color 0.3s;
-}
-.submitButton:hover {
-    background-color: #8731E4 !important;
-}
-
-.forgotPwd {
-    text-align: end;
-    text-decoration: none;
-    color: #494949;
-}
-
-.login-form input[type="submit"] {
-    margin-top: 20px;
-    padding: 10px;
-    border-radius: 10px;
-    border: none;
-    color: white;
-    background-color: #3C0F4B;
-    cursor: pointer;
-}
-
-html {
-    background-color: #111111;
-}
-
-.googleSignIn {
-    border-radius: 15px;
-    background-color: #FFFFFF;
-    object-fit: contain;
-    margin-right: 2%;
-    width: 100%;
-    border: none;
-}
-
-.twitterSignIn {
-    border-radius: 15px;
-    background-color: black;
-    object-fit: contain;
-    margin-left: 2%;
-    width: 100%;
-    border: none;
-}
-
-.socials {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.twitterLogo {
-    max-width: 50px;
-}
-
-.signUpText {
-    margin-top: 8%;
-}
-
-.signUp {
-    text-decoration: none;
-    color: #8731E4;
+.login-page .sign-up-cta a {
+  color: var(--color-primary);
+  font-weight: 600;
 }

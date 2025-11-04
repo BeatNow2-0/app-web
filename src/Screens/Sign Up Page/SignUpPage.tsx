@@ -1,311 +1,230 @@
-import React, {useState, ChangeEvent, FormEvent, FocusEvent, useEffect} from 'react';
+import React, { ChangeEvent, FocusEvent, FormEvent, useState } from 'react';
 import './SignUpPage.css';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
-import logo from "../../assets/Logo.png";
-import logo2 from "../../assets/Frame 2.png";
-import  signInOrRegisterWithGoogle  from "../../Screens/Login Page/LoginPage";
-import CustomPopup from "../../components/Popup/CustomPopup";
-import Header from "../../Layout/Header/Header";
-import LoginPage from "../../Screens/Login Page/LoginPage";
-import {useNavigate} from "react-router-dom";
-import VerifyPopup from "../../components/VerifyPopup/VerifyPopup";
-import LoadingPopup from "../../components/Loading/Loading";
-import { buildApiUrl } from '../../config/apiConfig';
+import logo2 from '../../assets/Frame 2.png';
+import CustomPopup from '../../components/Popup/CustomPopup';
+import Header from '../../Layout/Header/Header';
+import VerifyPopup from '../../components/VerifyPopup/VerifyPopup';
+import LoadingPopup from '../../components/Loading/Loading';
+import AuthLayout from '../../components/AuthLayout/AuthLayout';
+import {
+  checkAvailability,
+  registerUser,
+  requestAccessToken,
+  sendConfirmationEmail,
+} from '../../Model/api/auth';
 
 const passwordRequirements = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,20}$/;
 
+type FieldName = 'full_name' | 'username' | 'email' | 'password' | 'confirmPassword';
+
 function SignUpPage() {
-    const navigate = useNavigate();
-    const [token, setToken] = useState('');
-    const [showVerify, setShowVerify] = useState(false);
-    const [showLoading, setShowLoading] = useState(false);
-    const [full_name, setFullName] = useState('');
-    const [username, setUsername] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [is_active, setIsActive] = useState('false');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [registrationError, setRegistrationError] = useState('');
-    const [showPopup, setShowPopup] = useState(false);
-    const [message, setMessage] = useState('');
-    const [emailAvailable, setEmailAvailable] = useState(true);
-    const [usernameAvailable, setUsernameAvailable] = useState(true);
+  const [form, setForm] = useState({
+    full_name: '',
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [token, setToken] = useState('');
+  const [showVerify, setShowVerify] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const [message, setMessage] = useState('');
+  const [emailAvailable, setEmailAvailable] = useState(true);
+  const [usernameAvailable, setUsernameAvailable] = useState(true);
 
-    const handleFullNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setFullName(event.target.value);
-    };
+  const handleFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setForm((prev) => ({ ...prev, [name as FieldName]: value }));
+    if (name === 'email') {
+      setEmailAvailable(true);
+    }
+    if (name === 'username') {
+      setUsernameAvailable(true);
+    }
+  };
 
+  const handleClose = () => {
+    setShowPopup(false);
+  };
 
-    const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setUsername(event.target.value);
-        setUsernameAvailable(true);
-    };
-
-    const handleClose = () => {
-        setShowPopup(false);
-    };
-
-    const checkEmailAvailability = async (email: string) => {
-        if (!email) {
-            return true;
-        }
-        try {
-            const response_email = await axios.get(buildApiUrl('/v1/api/users/check-email'), {
-                params: { email }
-            });
-            return response_email.data.status === "ok";
-        } catch (error) {
-            console.error('Error checking email:', error);
-            return false;
-        }
-    };
-
-    const checkUsernameAvailability = async (username: string) => {
-        if (!username) {
-            return true;
-        }
-        try {
-            const response_username = await axios.get(buildApiUrl('/v1/api/users/check-username'), {
-                params: { username }
-            });
-            return response_username.data.status === "ok";
-        } catch (error) {
-            console.error('Error checking username:', error);
-            return false;
-        }
-    };
-
-    const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setEmail(event.target.value);
-        setEmailAvailable(true);
-    };
-
-    const handleEmailBlur = async (event: FocusEvent<HTMLInputElement>) => {
-        const email = event.target.value;
-        if (email) {
-            const isAvailable = await checkEmailAvailability(email);
-            setEmailAvailable(isAvailable);
-            if (!isAvailable) {
-                setMessage('This email is already registered.');
-                setShowPopup(true);
-            }
-        }
-    };
-
-    const handleUsernameBlur = async (event: FocusEvent<HTMLInputElement>) => {
-        const username = event.target.value;
-        if (username) {
-            const isAvailable = await checkUsernameAvailability(username);
-            setUsernameAvailable(isAvailable);
-            if (!isAvailable) {
-                setMessage('This username is already taken.');
-                setShowPopup(true);
-            }
-        }
-    };
-
-    const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setPassword(event.target.value);
-    };
-
-    const handleConfirmPasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setConfirmPassword(event.target.value);
-    };
-
-    const getToken = async () => {
-        try {
-            const response = await axios.post(
-                buildApiUrl('/token'),
-                new URLSearchParams({
-                    grant_type: '',
-                    username: username,
-                    password: password,
-                    scope: '',
-                    client_id: '',
-                    client_secret: ''
-                }),
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'accept': 'application/json'
-                    }
-                }
-            );
-            return response.data.access_token;
-        } catch (error) {
-            console.error('Error obtaining token:', error);
-            return null;
-        }
-    };
-
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setShowLoading(true);
-        console.log(token);
-
-        let message = '';
-        if (full_name === '' || full_name.length > 40) {
-            message = 'Please enter a full name (max 40 characters).';
-        } else if (username === '' || username.length > 16 || /\s/.test(username)) {
-            message = 'Username must be less than 16 characters and contain no spaces.';
-        } else if (email === '' || email.length > 40 || !/\S+@\S+\.\S+/.test(email)) {
-            message = 'Please enter a valid email (max 40 characters).';
-        } else if (!passwordRequirements.test(password)) {
-            message = 'Password must be 8-20 characters and include uppercase, lowercase, number, and special character.';
-        } else if (confirmPassword !== password) {
-            message = 'Passwords do not match.';
-        } else if (!emailAvailable) {
-            message = 'This email is already registered.';
-        } else if (!usernameAvailable) {
-            message = 'This username is already taken.';
-        } else {
-            try {
-                const response = await axios.post(buildApiUrl('/v1/api/users/register'), {
-                    full_name,
-                    username,
-                    email,
-                    password,
-                    is_active
-                });
-
-                console.log(response.data);
-
-                // Obtain token
-                setToken(await getToken());
-
-                // Send confirmation email
-                try {
-                    console.log(token);
-                    await axios.post(
-                        buildApiUrl('/v1/api/mail/send-confirmation/'),
-                        {},
-                        {
-                            headers: {
-                                'accept': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            }
-                        }
-                    );
-                    setRegistrationError('');
-                    setShowLoading(false);
-                    setShowVerify(true);
-                    return;
-                } catch (emailError) {
-                    console.error('Error sending confirmation email:', emailError);
-                    setRegistrationError('');
-                    setShowLoading(false);
-                    setShowVerify(true);
-                    return;
-                }
-            } catch (error) {
-                console.error('Error during registration:', error);
-                message = 'Registration failed. Please try again.';
-            }
-        }
-        setShowLoading(false);
-
-        setMessage(message);
-        setShowPopup(true);
-    };
-
-    function notAvailable() {
-        setMessage('This feature is not available yet.');
-        setShowPopup(true);
+  const handleAvailabilityBlur = async (event: FocusEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    if (name !== 'email' && name !== 'username') {
+      return;
     }
 
-    return (
-        <div className="app">
-            {showPopup && (
-                <CustomPopup
-                    message={message}
-                    onClose={handleClose}
-                />
-            )}
+    const field = name as 'email' | 'username';
+    const isAvailable = await checkAvailability(field, value);
+    if (field === 'email') {
+      setEmailAvailable(isAvailable);
+    } else {
+      setUsernameAvailable(isAvailable);
+    }
 
-            {showLoading && (
-                <LoadingPopup
-                    message={""}
-                />
-            )}
+    if (!isAvailable && value) {
+      setMessage(field === 'email' ? 'This email is already registered.' : 'This username is already taken.');
+      setShowPopup(true);
+    }
+  };
 
-            {showVerify && (
-                <VerifyPopup
-                    token={token}/>
-            )}
-            <Header />
-            <div className="centerDiv2">
-                <main>
-                    <section className="registerContent">
-                        <h2>Create New Account</h2>
-                        <p>Please fill in the form to continue</p>
-                        <form className="register-form" onSubmit={handleSubmit}>
-                            <input
-                                type="text"
-                                value={full_name}
-                                onChange={handleFullNameChange}
-                                placeholder="Full Name"
-                                maxLength={40}
-                            />
-                            <div className="passwordInputs">
-                                <input
-                                    type="text"
-                                    value={username}
-                                    onChange={handleUsernameChange}
-                                    onBlur={handleUsernameBlur}
-                                    placeholder="Username"
-                                    maxLength={16}
-                                />
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={handleEmailChange}
-                                    onBlur={handleEmailBlur}
-                                    placeholder="Email"
-                                    maxLength={40}
-                                />
-                            </div>
-                            <div className="passwordInputs">
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={handlePasswordChange}
-                                    placeholder="Password"
-                                    maxLength={20}
-                                />
-                                <input
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={handleConfirmPasswordChange}
-                                    placeholder="Confirm Password"
-                                    maxLength={20}
-                                />
-                            </div>
+  const validateForm = () => {
+    if (!form.full_name || form.full_name.length > 40) {
+      return 'Please enter a full name (max 40 characters).';
+    }
+    if (!form.username || form.username.length > 16 || /\s/.test(form.username)) {
+      return 'Username must be less than 16 characters and contain no spaces.';
+    }
+    if (!form.email || form.email.length > 40 || !/\S+@\S+\.\S+/.test(form.email)) {
+      return 'Please enter a valid email (max 40 characters).';
+    }
+    if (!passwordRequirements.test(form.password)) {
+      return 'Password must be 8-20 characters and include uppercase, lowercase, number, and special character.';
+    }
+    if (form.confirmPassword !== form.password) {
+      return 'Passwords do not match.';
+    }
+    if (!emailAvailable) {
+      return 'This email is already registered.';
+    }
+    if (!usernameAvailable) {
+      return 'This username is already taken.';
+    }
+    return null;
+  };
 
-                            <button className="submitButton2" type="submit">
-                                Sign up
-                            </button>
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const errorMessage = validateForm();
 
-                            <div className="signUpText">
-                                <h6>
-                                    Already have an account?{' '}
-                                    <Link className="signIn" to="/login">
-                                        Sign in
-                                    </Link>
-                                </h6>
-                            </div>
-                        </form>
-                        {registrationError && <div className="error">{registrationError}</div>}
-                    </section>
+    if (errorMessage) {
+      setMessage(errorMessage);
+      setShowPopup(true);
+      return;
+    }
 
-                    <div className="dividerVert2"></div>
-                    <section className="logoSect2">
-                        <img className="logoPngCenter2" src={logo2} alt="Logo"/>
-                    </section>
-                </main>
+    setShowLoading(true);
+
+    try {
+      await registerUser({
+        full_name: form.full_name,
+        username: form.username,
+        email: form.email,
+        password: form.password,
+        is_active: false,
+      });
+
+      const accessToken = await requestAccessToken({
+        username: form.username,
+        password: form.password,
+      });
+      setToken(accessToken);
+
+      try {
+        await sendConfirmationEmail(accessToken);
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+      }
+
+      setShowVerify(true);
+      setShowPopup(false);
+    } catch (error) {
+      console.error('Error during registration:', error);
+      setMessage('Registration failed. Please try again.');
+      setShowPopup(true);
+    } finally {
+      setShowLoading(false);
+    }
+  };
+
+  return (
+    <div className="app sign-up-page">
+      {showPopup && <CustomPopup message={message} onClose={handleClose} />} 
+      {showLoading && <LoadingPopup message="" />} 
+      {showVerify && token && <VerifyPopup token={token} />} 
+
+      <Header />
+
+      <AuthLayout
+        className="sign-up-page"
+        reverse
+        illustration={<img className="auth-illustration" src={logo2} alt="BeatNow illustration" />}
+      >
+        <div className="auth-content">
+          <div>
+            <h2 className="auth-title">Create New Account</h2>
+            <p className="auth-subtitle">Please fill in the form to continue</p>
+          </div>
+
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <input
+              className="auth-input"
+              type="text"
+              name="full_name"
+              value={form.full_name}
+              onChange={handleFieldChange}
+              placeholder="Full Name"
+              maxLength={40}
+            />
+
+            <div className="field-grid">
+              <input
+                className="auth-input"
+                type="text"
+                name="username"
+                value={form.username}
+                onChange={handleFieldChange}
+                onBlur={handleAvailabilityBlur}
+                placeholder="Username"
+                maxLength={16}
+              />
+              <input
+                className="auth-input"
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleFieldChange}
+                onBlur={handleAvailabilityBlur}
+                placeholder="Email"
+                maxLength={40}
+              />
             </div>
+
+            <div className="field-grid">
+              <input
+                className="auth-input"
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleFieldChange}
+                placeholder="Password"
+                maxLength={20}
+              />
+              <input
+                className="auth-input"
+                type="password"
+                name="confirmPassword"
+                value={form.confirmPassword}
+                onChange={handleFieldChange}
+                placeholder="Confirm Password"
+                maxLength={20}
+              />
+            </div>
+
+            <button className="btn btn-primary" type="submit">
+              Sign up
+            </button>
+          </form>
+
+          <p className="auth-note sign-in-cta">
+            Already have an account?{' '}
+            <Link to="/login">Sign in</Link>
+          </p>
         </div>
-    );
+      </AuthLayout>
+    </div>
+  );
 }
 
 export default SignUpPage;
