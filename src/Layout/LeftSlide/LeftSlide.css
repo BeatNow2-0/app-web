@@ -3,11 +3,12 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  height: 100%; /* Ocupa toda la altura del contenedor padre */
   padding: 20px; /* Añade algo de padding para que el contenido no esté pegado al borde */
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* Añade una sombra para darle un poco de estilo */
   position: fixed; /* Fija el contenedor en el lado izquierdo */
   left: 0; /* Alinea al left del viewport */
+  top: var(--header-height, 88px);
+  height: calc(100vh - var(--header-height, 88px));
   transition: width 0.3s ease; /* Agrega transición para el ancho */
   background-color: #0B0B0B;
   width: 80px; /* Ancho inicial del contenedor */
@@ -28,10 +29,10 @@
 
 .dark-background {
   position: fixed; /* Fija la posición del fondo oscuro */
-  top: 0; /* Asegura que el fondo oscuro esté en la parte superior de la página */
+  top: var(--header-height, 88px); /* Asegura que el fondo oscuro inicie debajo del header */
   left: 0; /* Asegura que el fondo oscuro esté alineado a la izquierda de la página */
   width: 100%; /* Asegura que el fondo oscuro ocupe todo el ancho de la página */
-  height: 100%; /* Asegura que el fondo oscuro ocupe toda la altura de la página */
+  height: calc(100vh - var(--header-height, 88px)); /* Ajusta la altura para no cubrir el header */
   background-color: rgba(0, 0, 0, 0.5); /* Añade color de fondo negro con 50% de opacidad */
   z-index: 999; /* Asegura que el fondo oscuro se muestre por debajo del LeftSlide pero por encima del resto del contenido */
   animation: fadeIn 0.3s ease-in-out; /* Aplica la animación fadeIn */

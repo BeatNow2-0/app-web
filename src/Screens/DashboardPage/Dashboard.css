@@ -1,12 +1,40 @@
 
+.dashboard-page {
+    min-height: 100vh;
+    background: var(--color-background);
+    color: var(--color-text);
+    padding-top: var(--header-height, 88px);
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-body {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    gap: 24px;
+}
+
 .leftSlide {
     flex-shrink: 0; /* Evita que el contenedor de la barra lateral se reduzca */
+    width: 80px;
 }
 
 .content {
     margin-left: 100px; /* Añade margen izquierdo para evitar la superposición */
     padding: 20px; /* Añade padding para separar el contenido del borde */
     flex-grow: 1; /* Permite que el contenido principal ocupe el resto del espacio */
+}
+
+@media (max-width: 1024px) {
+    .leftSlide {
+        width: 0;
+    }
+
+    .content {
+        margin-left: 0;
+        padding: 20px 16px 80px;
+    }
 }
 
 .home {

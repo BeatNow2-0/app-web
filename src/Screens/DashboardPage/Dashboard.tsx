@@ -137,70 +137,82 @@ function Dashboard() {
     }
 
     return (
-        <div className="app">
+        <div className="dashboard-page">
             {showPopup && <CustomPopup message={message} onClose={() => window.location.href = "/"} />}
             <Header />
-            <div className="leftSlide">
-                <LeftSlide />
-            </div>
-            <div className="content">
-                <div className="dash-header">
-                    <h1 className="home">{UserSingleton.getInstance().getUsername()}'s dashboard</h1>
-                    <button className="uploadButton" onClick={handleClick} title="Upload a beat">
-                        <i className="fa-solid fa-plus" />
-                    </button>
-                    <h1 className="rt-clock">{currentTime.toLocaleTimeString('en-US', { hour12: false })}</h1>
+            <div className="dashboard-body">
+                <div className="leftSlide">
+                    <LeftSlide />
                 </div>
-
-                {posts.length === 0 ? (
-                    <h2>Your dashboard looks empty...<br/>Try uploading some beats, share your creativity!</h2>
-                ) : (
-                    <>
-                    <div className="section-container">
-                        <h3>Recent Uploads</h3>
-                        <div className="cards-container">
-                            {posts.sort((a, b) => new Date(b.publication_date).getTime() - new Date(a.publication_date).getTime()).map((post, index) => (
-                            <motion.div
-                                className={`card ${selectedLayoutId === `post-${index}` ? 'hidden' : ''}`}
-                                key={post._id}
-                                layoutId={`post-${index}`}
-                                onClick={() => handleCardClick(post._id, `post-${index}`)}
-                                initial={{ opacity: 0, y: 50 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 50 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                <img className="post-picture" src={`http://172.203.251.28/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`} alt="Post" />
-                                <h4><b>{post.title}</b></h4>
-                                <p>{new Date(post.publication_date).toLocaleDateString()}</p>
-                            </motion.div>
-                            ))}
-                        </div>
+                <div className="content">
+                    <div className="dash-header">
+                        <h1 className="home">{UserSingleton.getInstance().getUsername()}'s dashboard</h1>
+                        <button className="uploadButton" onClick={handleClick} title="Upload a beat">
+                            <i className="fa-solid fa-plus" />
+                        </button>
+                        <h1 className="rt-clock">{currentTime.toLocaleTimeString('en-US', { hour12: false })}</h1>
                     </div>
 
-                    <div className="section-container">
-                        <h3>Popular Uploads</h3>
-                        <div className="cards-container">
-                            {popularPosts.map((post, index) => (
-                            <motion.div
-                                className={`card ${selectedLayoutId === `popular-${index}` ? 'hidden' : ''}`}
-                                key={post._id}
-                                layoutId={`popular-${index}`}
-                                onClick={() => handleCardClick(post._id, `popular-${index}`)}
-                                initial={{ opacity: 0, y: 50 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 50 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                <img className="post-picture" src={`http://172.203.251.28/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`} alt="Post" />
-                                <h4><b>{post.title}</b></h4>
-                                <p>{new Date(post.publication_date).toLocaleDateString()}</p>
-                            </motion.div>
-                            ))}
-                        </div>
-                    </div>
-                    </>
-                )}
+                    {posts.length === 0 ? (
+                        <h2>Your dashboard looks empty...<br/>Try uploading some beats, share your creativity!</h2>
+                    ) : (
+                        <>
+                            <div className="section-container">
+                                <h3>Recent Uploads</h3>
+                                <div className="cards-container">
+                                    {posts
+                                        .sort((a, b) => new Date(b.publication_date).getTime() - new Date(a.publication_date).getTime())
+                                        .map((post, index) => (
+                                            <motion.div
+                                                className={`card ${selectedLayoutId === `post-${index}` ? 'hidden' : ''}`}
+                                                key={post._id}
+                                                layoutId={`post-${index}`}
+                                                onClick={() => handleCardClick(post._id, `post-${index}`)}
+                                                initial={{ opacity: 0, y: 50 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: 50 }}
+                                                transition={{ duration: 0.3 }}
+                                            >
+                                                <img
+                                                    className="post-picture"
+                                                    src={`http://172.203.251.28/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`}
+                                                    alt="Post"
+                                                />
+                                                <h4><b>{post.title}</b></h4>
+                                                <p>{new Date(post.publication_date).toLocaleDateString()}</p>
+                                            </motion.div>
+                                        ))}
+                                </div>
+                            </div>
+
+                            <div className="section-container">
+                                <h3>Popular Uploads</h3>
+                                <div className="cards-container">
+                                    {popularPosts.map((post, index) => (
+                                        <motion.div
+                                            className={`card ${selectedLayoutId === `popular-${index}` ? 'hidden' : ''}`}
+                                            key={post._id}
+                                            layoutId={`popular-${index}`}
+                                            onClick={() => handleCardClick(post._id, `popular-${index}`)}
+                                            initial={{ opacity: 0, y: 50 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 50 }}
+                                            transition={{ duration: 0.3 }}
+                                        >
+                                            <img
+                                                className="post-picture"
+                                                src={`http://172.203.251.28/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`}
+                                                alt="Post"
+                                            />
+                                            <h4><b>{post.title}</b></h4>
+                                            <p>{new Date(post.publication_date).toLocaleDateString()}</p>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
             <AnimatePresence>
                 {selectedPost && selectedLayoutId && (
