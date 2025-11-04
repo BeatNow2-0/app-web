@@ -144,14 +144,12 @@ function LoginPage() {
                 src="https://img.icons8.com/color/48/000000/google-logo.png"
                 alt="Google"
               />
-              <span>Google</span>
             </button>
             <button className="social-button social-button--x" onClick={notAvailable} type="button">
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.png"
                 alt="X"
               />
-              <span>X</span>
             </button>
           </div>
 
