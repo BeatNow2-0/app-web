@@ -310,14 +310,16 @@ function Landing() {
             </main>
 
             <footer className="landing-footer">
-                <div className="footer-brand">
-                    <img src={logo} alt="BeatNow" />
-                    <p>Impulsamos la próxima generación de productores y sellos independientes.</p>
-                </div>
-                <div className="footer-links">
-                    <Link to="/login">Iniciar sesión</Link>
-                    <Link to="/register">Crear cuenta</Link>
-                    <span className="footer-pill">Seguridad reforzada 2024</span>
+                <div className="landing-footer-content">
+                    <div className="footer-brand">
+                        <img src={logo} alt="BeatNow" />
+                        <p>Impulsamos la próxima generación de productores y sellos independientes.</p>
+                    </div>
+                    <div className="footer-links">
+                        <Link to="/login">Iniciar sesión</Link>
+                        <Link to="/register">Crear cuenta</Link>
+                        <span className="footer-pill">Seguridad reforzada 2024</span>
+                    </div>
                 </div>
             </footer>
         </div>
