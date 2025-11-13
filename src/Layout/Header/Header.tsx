@@ -73,11 +73,6 @@ function Header() {
           </Link>
         )}
       </div>
-      {token === null ? (
-        <Link className="btn btn-outline header-cta" to="/register">
-          Sign up
-        </Link>
-      ) : (
         <div className="nav-links">
           <div className="profile" onClick={toggleDropdown} ref={dropdownRef}>
             <img src={user.photoProfile} alt="Profile" />
@@ -96,7 +91,6 @@ function Header() {
             )}
           </div>
         </div>
-      )}
       {showPopup && <CustomPopup message={message} onClose={closePopup} />}
     </header>
   );
