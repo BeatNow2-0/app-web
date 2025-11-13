@@ -5,7 +5,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import LoginPage from './Screens/Login Page/LoginPage';
-import Landing from "./Screens/Landing Page/LandingPage";
 import SignUpPage from "./Screens/Sign Up Page/SignUpPage";
 import './App.css';
 import Upload from "./Screens/UploadScreens/Upload";
@@ -59,7 +58,7 @@ function App() {
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<SignUpPage />} />
-                <Route path="*" element={<Landing />} />
+                <Route path="*" element={<LoginPage />} />
                 <Route path="/Upload" element={<Upload />} />
                 <Route path={"/Dashboard"} element={<Dashboard />} />
                 <Route path={"/ForgotPwd"} element={<ForgotPwdPage />} />

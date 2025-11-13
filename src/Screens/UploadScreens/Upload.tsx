@@ -2,7 +2,6 @@
 
 import React, {FormEvent, useEffect, useState} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import '../Landing Page/LandingPage.css';
 import rightarrow from '../../assets/siguiente-pista.png';
 import './Upload.css';
 import GlobalSelect from "../../components/Select/GlobalSelect";
