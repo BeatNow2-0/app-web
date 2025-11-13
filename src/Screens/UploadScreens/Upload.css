@@ -24,7 +24,8 @@
     display: flex;
     margin: 2%;
     align-self: center;
-    width: 100%; /* Ocupa todo el ancho disponible */
+    width: 80%;
+
 }
 
 .info-form {
@@ -41,7 +42,7 @@
     background-color: #494949;
     color: white;
     border-width: 0;
-    max-height: 75px;
+    max-height: 100px;
 }
 .image-container {
     cursor: pointer;
@@ -72,10 +73,6 @@
     padding:3% 3% 3% 0;
     height: 100%;
     position: relative;
-}
-
-
-.select {
 }
 
 .centered-text {
