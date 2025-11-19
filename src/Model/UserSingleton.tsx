@@ -73,7 +73,7 @@ class UserSingleton {
 
 
     private generatePhotoProfileUrl(): string {
-        return `http://172.203.251.28/beatnow/${this.id}/photo_profile/photo_profile.png`;
+        return `http://51.91.109.185/beatnow/${this.id}/photo_profile/photo_profile.png`;
     }
 
     public clear() {

@@ -200,7 +200,7 @@ function Dashboard() {
                     >
                       <img
                         className="post-picture"
-                        src={`http://172.203.251.28/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`}
+                        src={`http://51.91.109.185/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`}
                         alt={post.title}
                       />
                       <div className="card-title-row">
@@ -245,7 +245,7 @@ function Dashboard() {
                     >
                       <img
                         className="post-picture"
-                        src={`http://172.203.251.28/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`}
+                        src={`http://51.91.109.185/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`}
                         alt={post.title}
                       />
                       <div className="card-title-row">
@@ -277,8 +277,8 @@ function Dashboard() {
         {selectedPost && selectedLayoutId && (
           <CardDetails
             post={selectedPost}
-            image={`http://172.203.251.28/beatnow/${UserSingleton.getInstance().getId()}/posts/${selectedPost._id}/caratula.${selectedPost.cover_format}`}
-            audio={`http://172.203.251.28/beatnow/${UserSingleton.getInstance().getId()}/posts/${selectedPost._id}/audio.${selectedPost.audio_format}`}
+            image={`http://51.91.109.185/beatnow/${UserSingleton.getInstance().getId()}/posts/${selectedPost._id}/caratula.${selectedPost.cover_format}`}
+            audio={`http://51.91.109.185/beatnow/${UserSingleton.getInstance().getId()}/posts/${selectedPost._id}/audio.${selectedPost.audio_format}`}
             layoutId={selectedLayoutId}
             onClose={handleCloseCardDetails}
           />

@@ -9,10 +9,9 @@ import axios, {AxiosResponse} from "axios";
 import CustomPopup from '../../components/Popup/CustomPopup';
 import { TagsInput } from "react-tag-input-component";
 import Header from "../../Layout/Header/Header";
-import { useTransition, animated } from 'react-spring';
+import { useSpring, animated } from '@react-spring/web';
 import Select from 'react-select'
 import Loading from "../../components/Loading/Loading";
-import {useSpring} from "@react-spring/web";
 import { buildApiUrl } from '../../config/apiConfig';
 
 
