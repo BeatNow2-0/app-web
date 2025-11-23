@@ -20,7 +20,7 @@ import {
 function LoginPage() {
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState<Credentials>({ username: '', password: '' });
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
   const [showVerifyPopup, setShowVerifyPopup] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);

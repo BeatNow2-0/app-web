@@ -24,9 +24,9 @@ const CheckToken = () => {
 
     const checkToken = () => {
         intervalRef.current = window.setInterval(() => {
-            if (localStorage.getItem("token") === null) {
-                logout();
-            }
+            const token = localStorage.getItem("token");
+if (!token) return; // no borrar nada
+
         }, timeout);
     }
 
