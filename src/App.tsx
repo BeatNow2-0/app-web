@@ -11,6 +11,8 @@ import Upload from "./Screens/UploadScreens/Upload";
 import Dashboard from "./Screens/DashboardPage/Dashboard";
 import CustomPopup from './components/Popup/CustomPopup';
 import ForgotPwdPage from "./Screens/ForgotPwd Page/ForgotPwdPage";
+import Stats from './Screens/StatsPage/Stats';
+import NotFound from './Screens/NotFoundPage/NotFound';
 
 const CheckToken = () => {
     const timeout = 3000;
@@ -58,10 +60,11 @@ function App() {
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<SignUpPage />} />
-                <Route path="*" element={<LoginPage />} />
                 <Route path="/Upload" element={<Upload />} />
                 <Route path={"/Dashboard"} element={<Dashboard />} />
                 <Route path={"/ForgotPwd"} element={<ForgotPwdPage />} />
+                <Route path={"/Stats"} element={<Stats />} />
+                  <Route path="*" element={<NotFound />} />
             </Routes>
         </Router>
     );
