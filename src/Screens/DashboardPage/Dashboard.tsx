@@ -24,13 +24,23 @@ interface Post {
   user_id: string;
   audio_format: string;
   cover_format: string;
+
+  // campos opcionales que pueden venir del backend o calcularse frontend
+  plays?: number;
+  plays_7d?: number;
+  likes_7d?: number;
+  saves_7d?: number;
 }
 
+type PostWithScore = Post & { trendingScore?: number };
+
 function Dashboard() {
+  const BACKEND_BASE = "https://51.91.109.185";
+
   const navigate = useNavigate();
   const [tokenExists, setTokenExists] = useState(true);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [popularPosts, setPopularPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostWithScore[]>([]);
+  const [popularPosts, setPopularPosts] = useState<PostWithScore[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [selectedLayoutId, setSelectedLayoutId] = useState<string | null>(null);
@@ -49,13 +59,33 @@ function Dashboard() {
         },
       })
       .then((response) => {
-        const data: Post[] = response.data;
-        setPosts(data);
+        const data: Post[] = response.data || [];
 
-        const sortedPosts = [...data].sort(
-          (a, b) => b.likes + b.saves - (a.likes + a.saves)
+        // compute trending score for each post (uses optional plays_7d, likes_7d, saves_7d)
+        const computeTrending = (post: Post): number => {
+          const plays = (post as any).plays_7d || (post.plays || 0);
+          const likes = (post as any).likes_7d || 0;
+          const saves = (post as any).saves_7d || 0;
+          const ageDays =
+            (Date.now() - new Date(post.publication_date).getTime()) /
+            (1000 * 60 * 60 * 24);
+          // simple formula — puedes ajustar pesos
+          const score = plays + likes * 2 + saves * 3 - ageDays * 0.2;
+          return Math.max(0, score);
+        };
+
+        const withScore: PostWithScore[] = data.map((p) => ({
+          ...p,
+          trendingScore: computeTrending(p),
+        }));
+
+        // ordenar por trendingScore descendente
+        const sortedByScore = [...withScore].sort(
+          (a, b) => (b.trendingScore || 0) - (a.trendingScore || 0)
         );
-        setPopularPosts(sortedPosts);
+
+        setPosts(withScore);
+        setPopularPosts(sortedByScore);
       })
       .catch((error) => {
         console.error("There was an error!", error);
@@ -127,6 +157,23 @@ function Dashboard() {
       new Date(a.publication_date).getTime()
   );
 
+  // calcula un umbral dinámico para "isTrending" (top 20% de scores)
+  const trendingThreshold = React.useMemo(() => {
+    const scores = posts
+      .map((p) => p.trendingScore || 0)
+      .sort((a, b) => b - a);
+    if (scores.length === 0) return 0;
+    const idx = Math.max(0, Math.floor(scores.length * 0.2) - 1); // top 20%
+    return scores[idx] ?? scores[scores.length - 1];
+  }, [posts]);
+
+const makeImageUrl = (post: Post) =>
+  `${BACKEND_BASE}/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`;
+
+const makeAudioUrl = (post: Post) =>
+  `${BACKEND_BASE}/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/audio.${post.audio_format}`;
+
+
   return (
     <div className="dashboard-page">
       {showPopup && (
@@ -179,56 +226,71 @@ function Dashboard() {
             </div>
           ) : (
             <>
-              {/* Recent Uploads */}
+              {/* Recent Uploads (vertical list) */}
               <div className="section-container">
                 <h3>Recent uploads</h3>
-                <div className="cards-container">
-                  {recentPosts.map((post, index) => (
-                    <motion.div
-                      className={`card ${
-                        selectedLayoutId === `post-${index}` ? "hidden" : ""
-                      }`}
-                      key={post._id}
-                      layoutId={`post-${index}`}
-                      onClick={() =>
-                        handleCardClick(post._id, `post-${index}`)
-                      }
-                      initial={{ opacity: 0, y: 25 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 25 }}
-                      transition={{ duration: 0.25 }}
-                    >
-                      <img
-                        className="post-picture"
-                        src={`https://51.91.109.185/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`}
-                        alt={post.title}
-                      />
-                      <div className="card-title-row">
-                        <h4 className="card-title">{post.title}</h4>
-                        <p className="card-date">
-                          {new Date(
-                            post.publication_date
-                          ).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="card-meta">
-                        <span>
-                          <i className="fa-regular fa-heart" /> {post.likes}
-                        </span>
-                        <span>
-                          <i className="fa-regular fa-bookmark" /> {post.saves}
-                        </span>
-                      </div>
-                    </motion.div>
-                  ))}
+                <div className="list-container">
+                  {recentPosts.map((post) => {
+                    const isNew =
+                      Date.now() -
+                        new Date(post.publication_date).getTime() <
+                      1000 * 60 * 60 * 24 * 7;
+                    const trendingScore = post.trendingScore || 0;
+                    const isTrending = trendingScore >= trendingThreshold && trendingThreshold > 0;
+
+                    return (
+                      <motion.div
+                        key={post._id}
+                        className="list-row"
+                        onClick={() =>
+                          handleCardClick(post._id, `row-${post._id}`)
+                        }
+                        layoutId={`row-${post._id}`}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 12 }}
+                        transition={{ duration: 0.18 }}
+                      >
+                        <img
+                          className="thumb"
+                          src={makeImageUrl(post)}
+                          alt={post.title}
+                        />
+                        <div className="row-main">
+                          <div className="row-title">
+                            <span className="row-title-text">{post.title}</span>
+                            {isNew && <span className="badge new">New</span>}
+                            {isTrending && (
+                              <span className="badge trending">Trending</span>
+                            )}
+                          </div>
+
+                          <div className="row-meta">
+                            <span className="small-kpi">
+                              <i className="fa-solid fa-play" />{" "}
+                              {((post.plays) ?? (post as any)).plays || 0}
+                            </span>
+                            <span className="small-kpi">
+                              <i className="fa-regular fa-heart" /> {post.likes}
+                            </span>
+                            <span className="small-kpi">
+                              <i className="fa-regular fa-bookmark" /> {post.saves}
+                            </span>
+                            {/* placeholder para sparkline: puedes meter aquí un pequeño SVG o componente */}
+                            <span className="small-kpi">Score: {Math.round(trendingScore)}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Popular Uploads */}
+              {/* Popular / Trending Uploads — mostramos top 6 por score */}
               <div className="section-container">
                 <h3>Popular uploads</h3>
                 <div className="cards-container">
-                  {popularPosts.map((post, index) => (
+                  {popularPosts.slice(0, 6).map((post, index) => (
                     <motion.div
                       className={`card ${
                         selectedLayoutId === `popular-${index}` ? "hidden" : ""
@@ -245,15 +307,13 @@ function Dashboard() {
                     >
                       <img
                         className="post-picture"
-                        src={`https://51.91.109.185/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`}
+                        src={makeImageUrl(post)}
                         alt={post.title}
                       />
                       <div className="card-title-row">
                         <h4 className="card-title">{post.title}</h4>
                         <p className="card-date">
-                          {new Date(
-                            post.publication_date
-                          ).toLocaleDateString()}
+                          {new Date(post.publication_date).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="card-meta">
@@ -277,8 +337,8 @@ function Dashboard() {
         {selectedPost && selectedLayoutId && (
           <CardDetails
             post={selectedPost}
-            image={`https://51.91.109.185/beatnow/${UserSingleton.getInstance().getId()}/posts/${selectedPost._id}/caratula.${selectedPost.cover_format}`}
-            audio={`https://51.91.109.185/beatnow/${UserSingleton.getInstance().getId()}/posts/${selectedPost._id}/audio.${selectedPost.audio_format}`}
+            image={makeImageUrl(selectedPost)}
+            audio={makeAudioUrl(selectedPost)}
             layoutId={selectedLayoutId}
             onClose={handleCloseCardDetails}
           />
