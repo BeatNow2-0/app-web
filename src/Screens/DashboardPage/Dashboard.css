@@ -273,3 +273,13 @@
   transform: translateY(-1px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
 }
+
+.list-container { display: flex; flex-direction: column; gap: 12px; }
+.list-row { display:flex; gap:12px; align-items:center; padding:10px; border-radius:8px; background:#131313; cursor:pointer; }
+.thumb { width:96px; height:96px; object-fit:cover; border-radius:6px; }
+.row-main { flex:1; display:flex; flex-direction:column; }
+.row-title { font-weight:600; display:flex; gap:8px; align-items:center; }
+.badge { padding:4px 6px; border-radius:6px; font-size:12px; }
+.badge.new { background:#4caf50; color:white; }
+.badge.trending { background:#ff9800; color:white; }
+.small-kpi { margin-right:12px; font-size:13px; color:#ccc; }

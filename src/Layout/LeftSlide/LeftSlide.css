@@ -138,3 +138,85 @@
   opacity: 0; /* Oculta el botón */
   transform: translateX(-50px); /* Desplaza el botón hacia la izquierda */
 }
+/* ---- tus reglas existentes arriba; pego solo las necesarias / adicionales ---- */
+
+.menu-item {
+  margin-top: 20px;
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  opacity: 0;
+  transition: all 0.3s ease;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.menu-item:hover {
+  background-color: #6413BA;
+  padding-left: 18px; /* un pequeño desplazamiento para el hover */
+  cursor: pointer;
+}
+
+/* icono dentro del item */
+.menu-item i {
+  color: #ffffff;
+  margin-right: 8px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* etiqueta de texto para mantener consistente cuando uses Link o li */
+.menu-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+/* upload button styles ya existentes están bien; ajusto z-index */
+.uploadBeat {
+  display: block;
+  margin-top: 150px;
+  padding: 10px 20px;
+  background-color: #3C0F4B;
+  color: white;
+  width: 100%;
+  text-align: center;
+  border-radius: 5px;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.9s ease, transform 0.5s ease, background 0.3s ease;
+  border: none;
+}
+
+/* Si usas Link dentro de li, asegúrate de que los links no rompan el diseño */
+.menu li a,
+.menu li a:visited {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* animaciones: slideIn ya la tienes; si quieres una animación de salida puedes añadir esto */
+.container1.closing .menu-item {
+  animation: none;
+  opacity: 0;
+  transform: translateX(-18px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* pequeños ajustes para que el botón gire solo el icono */
+.rotate { transform: rotate(360deg); transition: transform 0.6s ease; }
+.button { display:flex; align-items:center; justify-content:center; }
+
+/* Asegura que dark background esté debajo del panel y encima del contenido */
+.dark-background { z-index: 999; }
+
+/* Asegura que el container esté por encima del dark background */
+.container1 { z-index: 1000; }
