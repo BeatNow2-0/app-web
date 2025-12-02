@@ -15,6 +15,7 @@ function Header() {
   const [closing, setClosing] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
+
   // nuevo: estado para abrir modal de perfil y datos
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
@@ -60,7 +61,7 @@ function Header() {
     setShowPopup(false);
   };
 
-  const token = localStorage.getItem('token');
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
 
   // --- API endpoints (ajusta si cambian)
   const API_ME = 'https://51.91.109.185:8001/v1/api/users/users/me';
