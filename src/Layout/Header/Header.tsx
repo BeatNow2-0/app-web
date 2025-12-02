@@ -102,7 +102,7 @@ function Header() {
         email: data.email ?? '',
         fullName: (data.full_name ?? data.fullName ?? data.name) || '',
         photoUrl: data.photoUrl ?? data.photo ?? data.avatar ?? undefined,
-        password: ''
+        password: data
       };
       setProfileUser(mapped);
     } catch (err) {
@@ -116,7 +116,7 @@ function Header() {
   };
 
   // onSave: recibe el objeto actualizado (según Profile.tsx)
-const handleSaveProfile = async (updated: ProfileUser & { photoFile?: File | null }) => {
+const handleSaveProfile = async (updated: ProfileUser & { photoFile?: File | null; password?: string }) => {
   const t = localStorage.getItem('token');
   if (!t) {
     setMessage('Token no disponible. Vuelve a iniciar sesión.');
@@ -129,7 +129,7 @@ const handleSaveProfile = async (updated: ProfileUser & { photoFile?: File | nul
   try {
     let uploadedPhotoUrl: string | undefined;
 
-    // 1) Subir foto si hay archivo
+    // 1) Subir foto
     if (updated.photoFile) {
       const form = new FormData();
       form.append('file', updated.photoFile, updated.photoFile.name);
@@ -149,18 +149,18 @@ const handleSaveProfile = async (updated: ProfileUser & { photoFile?: File | nul
         throw new Error(`Error subiendo la foto: ${resUpload.status} - ${uploadText}`);
       }
 
-      // Forzar cache-busting: la ruta de la foto en tu app depende del id
+      // forzar refresco
       uploadedPhotoUrl = singleton.getPhotoProfile() + '?v=' + Date.now();
     }
 
-    // 2) Preparar payload para /update (sin password)
-const payload: any = {
-  _id: updated.id,
-  full_name: updated.fullName,
-  username: updated.username,
-  email: updated.email,
-};
-
+    // 2) Payload con CONTRASEÑA incluida
+    const payload: any = {
+      _id: updated.id,
+      full_name: updated.fullName,
+      username: updated.username,
+      email: updated.email,
+      password: updated.password,  // ⬅ NECESARIO
+    };
 
     if (uploadedPhotoUrl) {
       payload.photo = uploadedPhotoUrl;
@@ -182,44 +182,43 @@ const payload: any = {
 
     if (!resUpdate.ok) {
       console.error('Error updating profile', resUpdate.status, updateText);
-      setMessage(`Error actualizando perfil: ${resUpdate.status}. ${updateText ? updateText.slice(0,150) : ''}`);
+      setMessage(`Error actualizando perfil: ${resUpdate.status}. ${updateText?.slice(0,150)}`);
       setShowPopup(true);
       throw new Error(`Error actualizando perfil: ${resUpdate.status} - ${updateText}`);
     }
 
-    let respJson: any = {};
-    try { respJson = updateText ? JSON.parse(updateText) : {}; } catch (e) { respJson = {}; }
+    const respJson = updateText ? JSON.parse(updateText) : {};
 
     const newUserData = {
       id: respJson._id ?? respJson.id ?? updated.id,
       username: respJson.username ?? updated.username,
       email: respJson.email ?? updated.email,
       fullName: respJson.full_name ?? respJson.fullName ?? updated.fullName,
-      photoUrl: respJson.photoUrl ?? respJson.photo ?? uploadedPhotoUrl ?? updated.photoUrl ?? undefined,
+      photoUrl: respJson.photoUrl ?? respJson.photo ?? uploadedPhotoUrl ?? updated.photoUrl,
       is_active: respJson.is_active ?? undefined,
     };
 
-    if (newUserData.fullName) singleton.setFullName(newUserData.fullName);
-    if (newUserData.username) singleton.setUsername(newUserData.username);
-    if (newUserData.email) singleton.setEmail(newUserData.email);
-    if (newUserData.id) singleton.setId(newUserData.id);
-    if (typeof newUserData.is_active === 'boolean') singleton.setIsActive(newUserData.is_active);
-
+    // Actualizar Singleton
+    singleton.setUsername(newUserData.username);
+    singleton.setFullName(newUserData.fullName);
+    singleton.setEmail(newUserData.email);
+    singleton.setId(newUserData.id);
     if (newUserData.photoUrl) {
       singleton.photoProfile = newUserData.photoUrl + '?v=' + Date.now();
     }
 
+    // Actualizar estado
     setProfileUser((prev) => (prev ? { ...prev, ...newUserData } : prev));
+
     setProfileOpen(false);
   } catch (err) {
     console.error('handleSaveProfile error', err);
-    if (!showPopup) {
-      setMessage('No se pudo guardar el perfil. Comprueba la consola para más detalles.');
-      setShowPopup(true);
-    }
+    setMessage('No se pudo guardar el perfil. Comprueba la consola.');
+    setShowPopup(true);
     throw err;
   }
 };
+
 
 
   // Change password handler
