@@ -15,15 +15,11 @@ function NotFound() {
         <p className="notfound-subtitle">Oops! The page you’re looking for doesn’t exist.</p>
 
         <div className="notfound-actions">
-          {token ? (
+
             <Link className="notfound-btn" to="/login">
               Go back to Login page
             </Link>
-          ) : (
-            <Link className="notfound-btn" to="/">
-              Go back Home
-            </Link>
-          )}
+            
         </div>
 
         <p className="notfound-hint">If you believe this is an error, please contact support.</p>
