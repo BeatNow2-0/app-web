@@ -201,9 +201,6 @@ const makeAudioUrl = (post: Post) =>
             </div>
 
             <div className="dash-right">
-              <span className="rt-clock">
-                {currentTime.toLocaleTimeString("en-US", { hour12: false })}
-              </span>
               <button
                 className="uploadButton"
                 onClick={handleClick}
