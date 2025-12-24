@@ -57,7 +57,7 @@ const Sparkline: React.FC<{ points: number[]; height?: number; width?: number }>
 };
 
 export default function Stats() {
-  const backendBase = "https://51.91.109.185";
+  const backendBase = "https://res.beatnow.app";
   const username = UserSingleton.getInstance().getUsername();
   const userId = UserSingleton.getInstance().getId();
   const token = localStorage.getItem("token");

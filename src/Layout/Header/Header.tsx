@@ -64,11 +64,11 @@ function Header() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
 
   // --- API endpoints (ajusta si cambian)
-  const API_ME = 'https://51.91.109.185:8001/v1/api/users/users/me';
-  const API_UPDATE = 'https://51.91.109.185:8001/v1/api/users/update';
+  const API_ME = 'https://api.beatnow.app/v1/api/users/users/me';
+  const API_UPDATE = 'https://api.beatnow.app/v1/api/users/update';
   // Photo endpoint: si tu server de fotos está en otro host/puerto, cámbialo.
-  const API_CHANGE_PHOTO = 'https://51.91.109.185:8001/v1/api/users/change_photo_profile';
-  const API_DELETE_ACCOUNT = 'https://51.91.109.185:8001/v1/api/users/delete';
+  const API_CHANGE_PHOTO = 'https://api.beatnow.app/v1/api/users/change_photo_profile';
+  const API_DELETE_ACCOUNT = 'https://api.beatnow.app/v1/api/users/delete';
   // Fetch user data when opening profile
   const openProfile = async () => {
     closeDropdown();

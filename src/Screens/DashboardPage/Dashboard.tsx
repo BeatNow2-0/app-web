@@ -35,7 +35,7 @@ interface Post {
 type PostWithScore = Post & { trendingScore?: number };
 
 function Dashboard() {
-  const BACKEND_BASE = "https://51.91.109.185";
+  const BACKEND_BASE = "https://res.beatnow.app";
 
   const navigate = useNavigate();
   const [tokenExists, setTokenExists] = useState(true);
