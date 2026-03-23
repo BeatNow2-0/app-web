@@ -13,7 +13,6 @@ import {
   Credentials,
   fetchUserProfile,
   requestAccessToken,
-  requestLogin,
   UserData,
 } from '../../Model/api/auth';
 
@@ -57,7 +56,6 @@ function LoginPage() {
         throw new Error('Please fill in all fields.');
       }
 
-      await requestLogin(credentials);
       const accessToken = await requestAccessToken(credentials);
       localStorage.setItem('token', accessToken);
       setToken(accessToken);
