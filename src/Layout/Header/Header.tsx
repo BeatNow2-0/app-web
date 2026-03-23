@@ -6,6 +6,7 @@ import UserSingleton from '../../Model/UserSingleton';
 import Profile, { User as ProfileUser } from '../../components/Profile/Profile';
 import CustomPopup from '../../components/Popup/CustomPopup';
 import './Header.css';
+import { buildApiUrl } from '../../config/apiConfig';
 
 function Header() {
   const [message, setMessage] = useState('');
@@ -64,11 +65,8 @@ function Header() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
 
   // --- API endpoints (ajusta si cambian)
-  const API_ME = 'https://api.beatnow.app/v1/api/users/users/me';
-  const API_UPDATE = 'https://api.beatnow.app/v1/api/users/update';
-  // Photo endpoint: si tu server de fotos está en otro host/puerto, cámbialo.
-  const API_CHANGE_PHOTO = 'https://api.beatnow.app/v1/api/users/change_photo_profile';
-  const API_DELETE_ACCOUNT = 'https://api.beatnow.app/v1/api/users/delete';
+  const API_ME = buildApiUrl('/v1/api/users/users/me');
+  const API_DELETE_ACCOUNT = buildApiUrl('/v1/api/users/delete');
   // Fetch user data when opening profile
   const openProfile = async () => {
     closeDropdown();
@@ -117,158 +115,21 @@ function Header() {
   };
 
   // onSave: recibe el objeto actualizado (según Profile.tsx)
-const handleSaveProfile = async (updated: ProfileUser & { photoFile?: File | null; password?: string }) => {
-  const t = localStorage.getItem('token');
-  if (!t) {
-    setMessage('Token no disponible. Vuelve a iniciar sesión.');
-    setShowPopup(true);
-    throw new Error('No token');
-  }
-
-  const singleton = UserSingleton.getInstance();
-
-  try {
-    let uploadedPhotoUrl: string | undefined;
-
-    // 1) Subir foto
-    if (updated.photoFile) {
-      const form = new FormData();
-      form.append('file', updated.photoFile, updated.photoFile.name);
-
-      const resUpload = await fetch(API_CHANGE_PHOTO, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${t}` },
-        body: form,
-      });
-
-      const uploadText = await resUpload.text().catch(() => '');
-
-      if (!resUpload.ok) {
-        console.error('Upload failed:', resUpload.status, uploadText);
-        setMessage(`Error subiendo la foto: ${resUpload.status}. ${uploadText?.slice(0,150)}`);
-        setShowPopup(true);
-        throw new Error(`Error subiendo la foto: ${resUpload.status} - ${uploadText}`);
-      }
-
-      // forzar refresco
-      uploadedPhotoUrl = singleton.getPhotoProfile() + '?v=' + Date.now();
-    }
-
-    // 2) Payload con CONTRASEÑA incluida
-    const payload: any = {
-      _id: updated.id,
-      full_name: updated.fullName,
-      username: updated.username,
-      email: updated.email,
-      password: updated.password,  // ⬅ NECESARIO
-    };
-
-    if (uploadedPhotoUrl) {
-      payload.photo = uploadedPhotoUrl;
-      payload.photoUrl = uploadedPhotoUrl;
-    }
-
-    // 3) Llamada a /update
-    const resUpdate = await fetch(API_UPDATE, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${t}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const updateText = await resUpdate.text().catch(() => '');
-
-    if (!resUpdate.ok) {
-      console.error('Error updating profile', resUpdate.status, updateText);
-      setMessage(`Error actualizando perfil: ${resUpdate.status}. ${updateText?.slice(0,150)}`);
-      setShowPopup(true);
-      throw new Error(`Error actualizando perfil: ${resUpdate.status} - ${updateText}`);
-    }
-
-    const respJson = updateText ? JSON.parse(updateText) : {};
-
-    const newUserData = {
-      id: respJson._id ?? respJson.id ?? updated.id,
-      username: respJson.username ?? updated.username,
-      email: respJson.email ?? updated.email,
-      fullName: respJson.full_name ?? respJson.fullName ?? updated.fullName,
-      photoUrl: respJson.photoUrl ?? respJson.photo ?? uploadedPhotoUrl ?? updated.photoUrl,
-      is_active: respJson.is_active ?? undefined,
-    };
-
-    // Actualizar Singleton
-    singleton.setUsername(newUserData.username);
-    singleton.setFullName(newUserData.fullName);
-    singleton.setEmail(newUserData.email);
-    singleton.setId(newUserData.id);
-    if (newUserData.photoUrl) {
-      singleton.photoProfile = newUserData.photoUrl + '?v=' + Date.now();
-    }
-
-    // Actualizar estado
-    setProfileUser((prev) => (prev ? { ...prev, ...newUserData } : prev));
-
-    setProfileOpen(false);
-  } catch (err) {
-    console.error('handleSaveProfile error', err);
-    setMessage('No se pudo guardar el perfil. Comprueba la consola.');
-    setShowPopup(true);
-    throw err;
-  }
+const handleSaveProfile = async (_updated: ProfileUser & { photoFile?: File | null; password?: string }) => {
+  setMessage('La API pública actual no expone endpoints para editar perfil o cambiar la foto.');
+  setShowPopup(true);
+  throw new Error('Profile update is not supported by the current API schema.');
 };
 
 
 
   // Change password handler
- const handleChangePassword = async (payload: { currentPassword: string; newPassword: string }) => {
-  const t = localStorage.getItem('token');
-  if (!t) {
-    setMessage('Token no disponible. Vuelve a iniciar sesión.');
-    setShowPopup(true);
-    throw new Error('No token');
-  }
-
-  try {
-    // Tu backend acepta password via /update -> enviamos _id + password (new)
-    const body: any = {
-      _id: profileUser?.id ?? UserSingleton.getInstance().getId?.() ?? undefined,
-      password: payload.newPassword,
-    };
-
-    // IMPORTANTE: Si quieres añadir currentPassword para algún logging o verificación
-    // backend actual no lo espera en /update, pero no hace daño enviarlo:
-    // body.current_password = payload.currentPassword; // opcional
-
-    const res = await fetch(API_UPDATE, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${t}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    const text = await res.text().catch(() => '');
-
-    if (!res.ok) {
-      console.error('Change password via update failed', res.status, text);
-      setMessage('No se pudo cambiar la contraseña: ' + (text || res.status));
-      setShowPopup(true);
-      throw new Error(text || `Error ${res.status}`);
-    }
-
-    // success
-    setMessage('Contraseña cambiada correctamente.');
-    setShowPopup(true);
-  } catch (err) {
-    console.error('handleChangePassword error', err);
-    throw err;
-  }
+ const handleChangePassword = async (_payload: { currentPassword: string; newPassword: string }) => {
+  setMessage('La API pública actual no expone un endpoint autenticado para cambiar la contraseña desde perfil. Usa el flujo de recuperación de contraseña.');
+  setShowPopup(true);
+  throw new Error('Authenticated password change is not supported by the current API schema.');
 };
+
 
   // Delete account handler
   const handleDeleteAccount = async () => {

@@ -4,7 +4,7 @@
 }
 
 .upload-main {
-  padding: 32px 20px 48px;
+  padding: calc(var(--header-height, 88px) + 32px) 20px 48px;
 }
 
 .upload-shell {
@@ -348,7 +348,7 @@ input[type=number]::-webkit-inner-spin-button {
 
 @media (max-width: 768px) {
   .upload-main {
-    padding: 20px 14px 36px;
+    padding: calc(var(--header-height, 88px) + 20px) 14px 36px;
   }
 
   .upload-progress {
