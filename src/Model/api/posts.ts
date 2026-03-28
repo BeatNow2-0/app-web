@@ -51,6 +51,47 @@ const getApiErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const normalizeStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item).trim()).filter(Boolean);
+    }
+  } catch {
+    return trimmed
+      .split(',')
+      .map((item) => item.replace(/[[\]"]/g, '').trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const normalizeBeatPost = (beat: any): BeatPost => ({
+  ...beat,
+  tags: normalizeStringArray(beat?.tags),
+  moods: normalizeStringArray(beat?.moods),
+  instruments: normalizeStringArray(beat?.instruments),
+  genre: typeof beat?.genre === 'string' ? beat.genre.replace(/[[\]"]/g, '').trim() : beat?.genre,
+  bpm:
+    typeof beat?.bpm === 'string'
+      ? Number.parseInt(beat.bpm.replace(/[^\d]/g, ''), 10) || undefined
+      : beat?.bpm,
+});
+
 export async function fetchProducerPosts(token: string, username: string): Promise<BeatPost[]> {
   try {
     const response = await axios.get<BeatPost[]>(buildApiUrl(`/v1/api/users/posts/${username}`), {
@@ -60,7 +101,7 @@ export async function fetchProducerPosts(token: string, username: string): Promi
       },
     });
 
-    return response.data || [];
+    return (response.data || []).map(normalizeBeatPost);
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Unable to fetch beats.'));
   }
@@ -89,7 +130,7 @@ export async function updateBeat(token: string, postId: string, payload: BeatUpd
       },
     });
 
-    return response.data;
+    return normalizeBeatPost(response.data);
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Unable to update beat.'));
   }
