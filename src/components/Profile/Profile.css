@@ -139,7 +139,18 @@
   border-radius: 8px;
   outline: none;
 }
+.field textarea {
+  background: #0f0f0f;
+  border: 1px solid #222;
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 8px;
+  outline: none;
+  resize: vertical;
+  font: inherit;
+}
 .field input:focus { border-color: #7b3fb6; box-shadow: 0 0 0 3px rgba(124,63,182,0.07); }
+.field textarea:focus { border-color: #7b3fb6; box-shadow: 0 0 0 3px rgba(124,63,182,0.07); }
 
 /* Errors */
 .field-error { color: #ffb3b3; font-size: 0.8rem; margin-top: 4px; }

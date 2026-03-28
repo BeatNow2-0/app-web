@@ -6,6 +6,12 @@ import UserSingleton from '../../Model/UserSingleton';
 import Profile, { User as ProfileUser } from '../../components/Profile/Profile';
 import CustomPopup from '../../components/Popup/CustomPopup';
 import './Header.css';
+import {
+  fetchUserProfile,
+  resetProfilePhoto,
+  updateUserProfile,
+  uploadProfilePhoto,
+} from '../../Model/api/auth';
 import { buildApiUrl } from '../../config/apiConfig';
 
 function Header() {
@@ -65,8 +71,6 @@ function Header() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
 
   // --- API endpoints (ajusta si cambian)
-  const API_ME = buildApiUrl('/v1/api/users/users/me');
-  const API_DELETE_ACCOUNT = buildApiUrl('/v1/api/users/delete');
   // Fetch user data when opening profile
   const openProfile = async () => {
     closeDropdown();
@@ -76,32 +80,15 @@ function Header() {
       const t = localStorage.getItem('token');
       if (!t) throw new Error('No token available');
 
-      const res = await fetch(API_ME, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${t}`,
-          Accept: 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Error fetching profile:', res.status, text);
-        setMessage('No se pudo obtener la información de usuario.');
-        setShowPopup(true);
-        setProfileUser(null);
-        setProfileOpen(false);
-        return;
-      }
-
-      const data = await res.json();
+      const data = await fetchUserProfile(t);
       const mapped: ProfileUser = {
-        id: data.id ?? data._id ?? data.userId,
-        username: data.username ?? data.user_name ?? data.email?.split('@')?.[0] ?? '',
-        email: data.email ?? '',
-        fullName: (data.full_name ?? data.fullName ?? data.name) || '',
-        photoUrl: data.photoUrl ?? data.photo ?? data.avatar ?? undefined,
-        password: data
+        id: data.id,
+        username: data.username,
+        email: data.email,
+        fullName: data.full_name || '',
+        bio: data.bio ?? '',
+        photoUrl: data.profile_image_url ?? undefined,
+        password: '',
       };
       setProfileUser(mapped);
     } catch (err) {
@@ -115,10 +102,47 @@ function Header() {
   };
 
   // onSave: recibe el objeto actualizado (según Profile.tsx)
-const handleSaveProfile = async (_updated: ProfileUser & { photoFile?: File | null; password?: string }) => {
-  setMessage('La API pública actual no expone endpoints para editar perfil o cambiar la foto.');
+const handleSaveProfile = async (updated: ProfileUser & { photoFile?: File | null; password?: string }) => {
+  const t = localStorage.getItem('token');
+  if (!t) {
+    throw new Error('Session expired. Please sign in again.');
+  }
+
+  const currentProfile = profileUser;
+  const normalizedBio = updated.bio?.trim() || null;
+
+  await updateUserProfile(t, {
+    username: updated.username.trim(),
+    full_name: updated.fullName.trim(),
+    bio: normalizedBio,
+  });
+
+  let refreshedProfile = await fetchUserProfile(t);
+
+  if (updated.photoFile) {
+    refreshedProfile = await uploadProfilePhoto(t, updated.photoFile);
+  } else if (currentProfile?.photoUrl && !updated.photoUrl) {
+    refreshedProfile = await resetProfilePhoto(t);
+  }
+
+  user.setId(refreshedProfile.id);
+  user.setUsername(refreshedProfile.username);
+  user.setFullName(refreshedProfile.full_name);
+  user.setEmail(refreshedProfile.email);
+  user.setIsActive(refreshedProfile.is_active);
+  user.setPhotoProfile((refreshedProfile.profile_image_url || user.getPhotoProfile()) + `?v=${Date.now()}`);
+
+  setProfileUser({
+    id: refreshedProfile.id,
+    username: refreshedProfile.username,
+    email: refreshedProfile.email,
+    fullName: refreshedProfile.full_name || '',
+    bio: refreshedProfile.bio || '',
+    photoUrl: refreshedProfile.profile_image_url || undefined,
+    password: '',
+  });
+  setMessage('Perfil actualizado correctamente.');
   setShowPopup(true);
-  throw new Error('Profile update is not supported by the current API schema.');
 };
 
 
@@ -143,7 +167,7 @@ const handleSaveProfile = async (_updated: ProfileUser & { photoFile?: File | nu
   }
 
   try {
-    const res = await fetch(API_DELETE_ACCOUNT, {
+    const res = await fetch(buildApiUrl('/v1/api/users/delete'), {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${t}`,

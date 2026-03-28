@@ -16,6 +16,12 @@ export interface UserData {
   profile_image_url?: string | null;
 }
 
+export interface ProfileUpdatePayload {
+  username?: string;
+  full_name?: string;
+  bio?: string | null;
+}
+
 export interface RegistrationPayload {
   full_name: string;
   username: string;
@@ -90,6 +96,56 @@ export async function fetchUserProfile(token: string): Promise<UserData> {
     } satisfies UserData;
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Unable to retrieve user information.'));
+  }
+}
+
+export async function updateUserProfile(token: string, payload: ProfileUpdatePayload): Promise<UserData> {
+  try {
+    const response = await axios.put(buildApiUrl('/v1/api/users/users/me'), payload, {
+      headers: {
+        accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return {
+      ...response.data,
+      id: response.data.id ?? response.data._id ?? '',
+    } satisfies UserData;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Unable to update profile.'));
+  }
+}
+
+export async function uploadProfilePhoto(token: string, file: File): Promise<UserData> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    await axios.put(buildApiUrl('/v1/api/users/change_photo_profile'), formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return await fetchUserProfile(token);
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Unable to update profile photo.'));
+  }
+}
+
+export async function resetProfilePhoto(token: string): Promise<UserData> {
+  try {
+    await axios.delete(buildApiUrl('/v1/api/users/delete_photo_profile'), {
+      headers: {
+        accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return await fetchUserProfile(token);
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Unable to reset profile photo.'));
   }
 }
 

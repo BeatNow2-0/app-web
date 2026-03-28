@@ -6,14 +6,14 @@ import 'react-h5-audio-player/lib/styles.css';
 
 interface Post {
     title: string;
-    tags: string[];
-    genre: string;
-    moods: string[];
-    instruments: string[];
-    bpm: number;
+    tags?: string[];
+    genre?: string;
+    moods?: string[];
+    instruments?: string[];
+    bpm?: number;
     user_id: string;
     publication_date: string;
-    audio_format: string;
+    audio_format?: string;
     likes: number;
     saves: number;
     _id: string;
@@ -73,15 +73,15 @@ const CardDetails: React.FC<CardDetailsProps> = ({ post, audio, image, layoutId,
                     <div className="card-details-info">
                         <section className="cd-sect">
                             <div className="info-data">
-                                <h4 className="info"><b>Genre:</b> {post.genre}</h4>
-                                <h4 className="info"><b>Moods:</b> {post.moods.join(', ').replace(/[\[\]"]/g, '')}</h4>
-                                <h4 className="info"><b>Instruments:</b> {post.instruments.join(', ').replace(/[\[\]"]/g, '')}</h4>
-                                <h4 className="info"><b>BPM:</b> {post.bpm}</h4>
+                                <h4 className="info"><b>Genre:</b> {post.genre || "—"}</h4>
+                                <h4 className="info"><b>Moods:</b> {(post.moods || []).join(', ').replace(/[\[\]"]/g, '') || "—"}</h4>
+                                <h4 className="info"><b>Instruments:</b> {(post.instruments || []).join(', ').replace(/[\[\]"]/g, '') || "—"}</h4>
+                                <h4 className="info"><b>BPM:</b> {post.bpm || "—"}</h4>
                             </div>
                         </section>
                         <section className="cd-sect">
                             <div className="info-social">
-                                <h4 className="info"><b>Tags:</b> {post.tags.join(' ').replace(/[\[\]"]/g, '')}</h4>
+                                <h4 className="info"><b>Tags:</b> {(post.tags || []).join(' ').replace(/[\[\]"]/g, '') || "—"}</h4>
                                 <h4 className="info"><b>Likes:</b> {post.likes}</h4>
                                 <h4 className="info"><b>Saves:</b> {post.saves}</h4>
                             </div>

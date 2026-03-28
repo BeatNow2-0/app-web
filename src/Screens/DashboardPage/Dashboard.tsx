@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "../../Layout/Header/Header";
 import LeftSlide from "../../Layout/LeftSlide/LeftSlide";
@@ -8,31 +7,10 @@ import "./Dashboard.css";
 import CardDetails from "../../components/CardDetails/CardDetails";
 import CustomPopup from "../../components/Popup/CustomPopup";
 import { useNavigate } from "react-router-dom";
-import { buildApiUrl } from "../../config/apiConfig";
+import { fetchUserProfile } from "../../Model/api/auth";
+import { BeatPost, fetchProducerPosts } from "../../Model/api/posts";
 
-interface Post {
-  _id: string;
-  title: string;
-  publication_date: string;
-  likes: number;
-  saves: number;
-  tags: string[];
-  genre: string;
-  moods: string[];
-  instruments: string[];
-  bpm: number;
-  user_id: string;
-  audio_format: string;
-  cover_format: string;
-
-  // campos opcionales que pueden venir del backend o calcularse frontend
-  plays?: number;
-  plays_7d?: number;
-  likes_7d?: number;
-  saves_7d?: number;
-}
-
-type PostWithScore = Post & { trendingScore?: number };
+type PostWithScore = BeatPost & { trendingScore?: number };
 
 function Dashboard() {
   const BACKEND_BASE = "https://res.beatnow.app";
@@ -52,17 +30,11 @@ function Dashboard() {
     const username = UserSingleton.getInstance().getUsername();
     const token = localStorage.getItem("token");
 
-    axios
-      .get(buildApiUrl(`/v1/api/users/posts/${username}`), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      .then((response) => {
-        const data: Post[] = response.data || [];
+    fetchProducerPosts(token || "", username)
+      .then((data) => {
 
         // compute trending score for each post (uses optional plays_7d, likes_7d, saves_7d)
-        const computeTrending = (post: Post): number => {
+        const computeTrending = (post: BeatPost): number => {
           const plays = (post as any).plays_7d || (post.plays || 0);
           const likes = (post as any).likes_7d || 0;
           const saves = (post as any).saves_7d || 0;
@@ -95,18 +67,8 @@ function Dashboard() {
   useEffect(() => {
     const token = localStorage.getItem("token");
 
-    const url = buildApiUrl("/v1/api/users/users/me");
-    const headers = {
-      accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    };
-    axios
-      .get(url, { headers })
-      .then((response) => {
-        if (response.status === 200) {
-          console.log("Información del usuario:", response.data);
-        }
-      })
+    fetchUserProfile(token || "")
+      .then(() => {})
       .catch((error) => {
         console.error("Error al obtener la información del usuario.");
         setTokenExists(false);
@@ -167,11 +129,22 @@ function Dashboard() {
     return scores[idx] ?? scores[scores.length - 1];
   }, [posts]);
 
-const makeImageUrl = (post: Post) =>
-  `${BACKEND_BASE}/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`;
+  const makeImageUrl = (post: BeatPost) =>
+    post.cover_image_url ||
+    `${BACKEND_BASE}/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`;
 
-const makeAudioUrl = (post: Post) =>
-  `${BACKEND_BASE}/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/audio.${post.audio_format}`;
+  const makeAudioUrl = (post: BeatPost) =>
+    post.audio_url ||
+    `${BACKEND_BASE}/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/audio.${post.audio_format}`;
+
+  const dashboardTotals = React.useMemo(() => {
+    return {
+      beats: posts.length,
+      likes: posts.reduce((sum, post) => sum + (post.likes || 0), 0),
+      saves: posts.reduce((sum, post) => sum + (post.saves || 0), 0),
+      plays: posts.reduce((sum, post) => sum + (post.views || post.plays || 0), 0),
+    };
+  }, [posts]);
 
 
   return (
@@ -211,6 +184,36 @@ const makeAudioUrl = (post: Post) =>
               </button>
             </div>
           </div>
+
+          <section className="dashboard-kpis">
+            <article className="dashboard-kpi-card">
+              <span>Published beats</span>
+              <strong>{dashboardTotals.beats}</strong>
+            </article>
+            <article className="dashboard-kpi-card">
+              <span>Total likes</span>
+              <strong>{dashboardTotals.likes}</strong>
+            </article>
+            <article className="dashboard-kpi-card">
+              <span>Total saves</span>
+              <strong>{dashboardTotals.saves}</strong>
+            </article>
+            <article className="dashboard-kpi-card">
+              <span>Total plays</span>
+              <strong>{dashboardTotals.plays}</strong>
+            </article>
+          </section>
+
+          <section className="dashboard-actions">
+            <button className="dashboard-action-card" onClick={() => navigate("/Beats")}>
+              <span className="dashboard-action-title">Manage beats</span>
+              <span className="dashboard-action-copy">Edit covers, tags, genre, BPM and descriptions from one place.</span>
+            </button>
+            <button className="dashboard-action-card" onClick={() => navigate("/Stats")}>
+              <span className="dashboard-action-title">Open stats</span>
+              <span className="dashboard-action-copy">Check which beats are getting saved, played and liked the most.</span>
+            </button>
+          </section>
 
           {posts.length === 0 ? (
             <div className="empty-state">

@@ -8,6 +8,7 @@ export interface User {
   username: string;
   email: string;
   fullName: string;
+  bio?: string;
   photoUrl?: string;
   password: string;
 }
@@ -37,6 +38,7 @@ const Profile: React.FC<ProfileProps> = ({
   const [username, setUsername] = useState(user.username || singleton.getUsername());
   const [email] = useState(user.email || singleton.getEmail());
   const [fullName, setFullName] = useState(user.fullName || singleton.getFullName());
+  const [bio, setBio] = useState(user.bio || "");
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(user.photoUrl || singleton.getPhotoProfile());
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
@@ -66,6 +68,7 @@ const Profile: React.FC<ProfileProps> = ({
     // sync on open
     setUsername(user.username || singleton.getUsername());
     setFullName(user.fullName || singleton.getFullName());
+    setBio(user.bio || "");
     setPhotoUrl(user.photoUrl || singleton.getPhotoProfile());
     setPhotoFile(null);
 
@@ -128,6 +131,7 @@ const Profile: React.FC<ProfileProps> = ({
       username: username.trim(),
       email, // read-only
       fullName: fullName.trim(),
+      bio: bio.trim(),
       photoUrl,
       photoFile,
       password: passwordInput,
@@ -140,9 +144,8 @@ const Profile: React.FC<ProfileProps> = ({
         singleton.setUsername(updatedUser.username);
         singleton.setFullName(updatedUser.fullName);
         singleton.setEmail(updatedUser.email);
+        singleton.setPhotoProfile(updatedUser.photoUrl || singleton.getPhotoProfile());
         if (updatedUser.id) singleton.setId(updatedUser.id);
-        // photoProfile may be updated by backend; we try to bust cache
-        singleton.photoProfile = singleton.getPhotoProfile() + "?v=" + Date.now();
       } catch (e) {
         // ignore if singleton shape differs
       }
@@ -263,6 +266,17 @@ const Profile: React.FC<ProfileProps> = ({
               <span className="label">Nombre completo</span>
               <input value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={80} aria-invalid={!!errors.fullName} />
               {errors.fullName && <small className="field-error">{errors.fullName}</small>}
+            </label>
+
+            <label className="field">
+              <span className="label">Bio</span>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                maxLength={280}
+                rows={4}
+                placeholder="Cuéntales a los artistas qué tipo de beats haces."
+              />
             </label>
 
             {errors.form && <div className="form-error">{errors.form}</div>}

@@ -50,7 +50,7 @@ function LeftSlide() {
           <>
             <ul className="menu" role="menu" aria-hidden={!isVisible}>
               {/* Opción B: usamos onClick que primero cierra y luego navega */}
-              <li className="menu-item slide-in" role="menuitem" onClick={() => navigateWithClose("/")}>
+              <li className="menu-item slide-in" role="menuitem" onClick={() => navigateWithClose("/Dashboard")}>
                 <i className="fa-solid fa-house" /> <span className="menu-label">Home</span>
               </li>
 

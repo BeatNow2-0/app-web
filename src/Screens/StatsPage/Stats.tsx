@@ -1,27 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import Header from "../../Layout/Header/Header";
 import LeftSlide from "../../Layout/LeftSlide/LeftSlide";
 import UserSingleton from "../../Model/UserSingleton";
 import "./Stats.css";
-import { buildApiUrl } from "../../config/apiConfig";
-
-interface Post {
-  _id: string;
-  title: string;
-  publication_date: string;
-  likes: number;
-  saves: number;
-  plays?: number;
-  plays_7d?: number;
-  likes_7d?: number;
-  saves_7d?: number;
-  audio_format?: string;
-  cover_format?: string;
-  price?: number;
-  sales_count?: number;
-}
+import { BeatPost, fetchProducerPosts } from "../../Model/api/posts";
 
 function formatNumber(n: number) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -57,12 +41,13 @@ const Sparkline: React.FC<{ points: number[]; height?: number; width?: number }>
 };
 
 export default function Stats() {
+  const navigate = useNavigate();
   const backendBase = "https://res.beatnow.app";
   const username = UserSingleton.getInstance().getUsername();
   const userId = UserSingleton.getInstance().getId();
   const token = localStorage.getItem("token");
 
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<BeatPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -82,12 +67,8 @@ export default function Stats() {
     setLoading(true);
     setErrorMsg(null);
 
-    axios
-      .get(buildApiUrl(`/v1/api/users/posts/${username}`), {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => {
-        const data: Post[] = res.data || [];
+    fetchProducerPosts(token || "", username)
+      .then((data) => {
         setPosts(
           data.map((p) => ({
             plays: (p as any).plays || 0,
@@ -130,6 +111,9 @@ export default function Stats() {
     return [...posts].sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 6);
   }, [posts]);
 
+  const strongestBeat = topBeats[0];
+  const saveRate = totals.totalPlays > 0 ? ((totals.totalSaves / totals.totalPlays) * 100).toFixed(1) : "0.0";
+
   const activitySeries = useMemo(() => {
     const days = 14;
     const arr = new Array(days).fill(0);
@@ -149,7 +133,8 @@ export default function Stats() {
     return arr.map((v) => Math.round(v));
   }, [posts]);
 
-  const makeImageUrl = (post: Post) =>
+  const makeImageUrl = (post: BeatPost) =>
+    post.cover_image_url ||
     `${backendBase}/beatnow/${userId}/posts/${post._id}/caratula.${post.cover_format || "jpg"}`;
 
   // CSV export (cliente)
@@ -252,6 +237,33 @@ export default function Stats() {
               </section>
 
               <section className="section">
+                <h3>What to do next</h3>
+                <div className="top-grid">
+                  <div className="top-card">
+                    <div className="top-info">
+                      <div className="title">Best performing beat</div>
+                      <div className="small">
+                        {strongestBeat ? `${strongestBeat.title} is leading your catalog right now.` : "Upload more beats to identify your strongest performer."}
+                      </div>
+                      <div className="meta">
+                        <span>{formatNumber(strongestBeat?.plays || strongestBeat?.views || 0)} plays</span>
+                        <span>{strongestBeat?.likes || 0} likes</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="top-card">
+                    <div className="top-info">
+                      <div className="title">Save rate</div>
+                      <div className="small">
+                        {saveRate}% of your plays are turning into saves. Improve covers and tags on underperforming beats.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="section">
                 <h3>Top beats</h3>
                 <div className="top-grid">
                   {topBeats.map((p) => (
@@ -273,11 +285,11 @@ export default function Stats() {
               </section>
 
               <section className="section">
-                <h3>Detalles y acciones</h3>
+                <h3>Quick actions</h3>
                 <div className="actions-row">
-                  <button onClick={() => (window.location.href = "/profile")}>Ver perfil público</button>
-                  <button onClick={() => (window.location.href = "/sales")}>Ver ventas / licencias</button>
-                  <button onClick={() => (window.location.href = "/analytics")}>Exportar CSV</button>
+                  <button onClick={() => navigate("/Beats")}>Manage beats</button>
+                  <button onClick={() => navigate("/Upload")}>Upload a new beat</button>
+                  <button onClick={exportCsv}>Export CSV</button>
                 </div>
               </section>
             </>

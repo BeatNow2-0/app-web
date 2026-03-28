@@ -9,6 +9,7 @@ import SignUpPage from "./Screens/Sign Up Page/SignUpPage";
 import './App.css';
 import Upload from "./Screens/UploadScreens/Upload";
 import Dashboard from "./Screens/DashboardPage/Dashboard";
+import BeatsPage from "./Screens/BeatsPage/BeatsPage";
 import CustomPopup from './components/Popup/CustomPopup';
 import ForgotPwdPage from "./Screens/ForgotPwd Page/ForgotPwdPage";
 import Stats from './Screens/StatsPage/Stats';
@@ -62,6 +63,8 @@ function App() {
                 <Route path="/register" element={<SignUpPage />} />
                 <Route path="/Upload" element={<Upload />} />
                 <Route path={"/Dashboard"} element={<Dashboard />} />
+                <Route path={"/Beats"} element={<BeatsPage />} />
+                <Route path={"/beats"} element={<BeatsPage />} />
                 <Route path={"/ForgotPwd"} element={<ForgotPwdPage />} />
                 <Route path={"/Stats"} element={<Stats />} />
                   <Route path="*" element={<NotFound />} />
