@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import './CardDetails.css';
 import AudioPlayer from 'react-h5-audio-player';
 import 'react-h5-audio-player/lib/styles.css';
@@ -11,84 +11,136 @@ interface Post {
     moods?: string[];
     instruments?: string[];
     bpm?: number;
+    description?: string;
     user_id: string;
     publication_date: string;
     audio_format?: string;
     likes: number;
     saves: number;
+    views?: number;
     _id: string;
 }
 
 interface CardDetailsProps {
     post: Post;
     audio: string;
-    image: string; // Add this line
+    image: string;
     layoutId: string;
     onClose: () => void;
 }
 
 const CardDetails: React.FC<CardDetailsProps> = ({ post, audio, image, layoutId, onClose }) => {
-    const [isHovered, setIsHovered] = useState(false);
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [onClose]);
+
+    const formattedDate = new Date(post.publication_date).toLocaleDateString();
+    const tags = (post.tags || []).join(' ');
+    const metaCards = [
+        { label: 'Genre', value: post.genre || 'Not set' },
+        { label: 'Moods', value: (post.moods || []).join(', ') || 'Not set' },
+        { label: 'Instruments', value: (post.instruments || []).join(', ') || 'Not set' },
+        { label: 'BPM', value: post.bpm ? String(post.bpm) : 'Not set' },
+    ];
+
+    const statCards = [
+        { label: 'Likes', value: post.likes },
+        { label: 'Saves', value: post.saves },
+        { label: 'Views', value: post.views ?? 0 },
+        { label: 'Published', value: formattedDate },
+    ];
 
     return (
-        <motion.div className="card-details-popup">
-            <AnimatePresence>
-                <motion.div
-                    className="card-details-content"
-                    layoutId={layoutId}
-                    initial={{ scale: 0.7 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0.7 }}
-                    transition={{ duration: 0.5 }}
-                >
-                    <div className="card-details-header">
-                        <h1><b>{post.title}</b></h1>
-                        <button className="card-closeBtn" onClick={onClose}>✖</button>
+        <motion.div
+            className="card-details-popup"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+        >
+            <motion.div
+                className="card-details-content"
+                layoutId={layoutId}
+                initial={{ y: 32, opacity: 0, scale: 0.96 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: 24, opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.28, ease: 'easeOut' }}
+                onClick={(event) => event.stopPropagation()}
+            >
+                <div className="card-details-header">
+                    <div className="card-details-heading">
+                        <p className="card-details-eyebrow">Beat preview</p>
+                        <h1>{post.title}</h1>
+                        <p className="card-details-subtitle">A cleaner responsive view with all the key info visible at a glance.</p>
                     </div>
-                    <div className={"image-and-player"}>
-                        <div
-                            className="card-image-container"
-                            onMouseEnter={() => setIsHovered(true)}
-                            onMouseLeave={() => setIsHovered(false)}
-                        >
-                            <div className={`card-image-gradient`}>
+                    <button className="card-closeBtn" onClick={onClose} aria-label="Close beat details">
+                        X
+                    </button>
+                </div>
 
-                                <img className="card-details-image" src={image} alt="Cover Image" />
-                            </div>
-                            <div className={`audio-player ${isHovered ? 'visible' : 'hidden'}`}>
-                                <AudioPlayer
-                                    autoPlay
-                                    loop={true}
-                                    src={audio}
-                                    showJumpControls={false}
-                                    showSkipControls={false}
-                                    showDownloadProgress={false}
-                                    customAdditionalControls={[]}
-                                    volume={0.20}
-                                    onPlay={e => console.log("onPlay")}
-                                />
-                            </div>
+                <div className="card-details-layout">
+                    <section className="card-details-hero">
+                        <div className="card-image-shell">
+                            <img className="card-details-image" src={image} alt={`${post.title} cover`} />
                         </div>
-                    </div>
-                    <div className="card-details-info">
-                        <section className="cd-sect">
-                            <div className="info-data">
-                                <h4 className="info"><b>Genre:</b> {post.genre || "—"}</h4>
-                                <h4 className="info"><b>Moods:</b> {(post.moods || []).join(', ').replace(/[\[\]"]/g, '') || "—"}</h4>
-                                <h4 className="info"><b>Instruments:</b> {(post.instruments || []).join(', ').replace(/[\[\]"]/g, '') || "—"}</h4>
-                                <h4 className="info"><b>BPM:</b> {post.bpm || "—"}</h4>
-                            </div>
-                        </section>
-                        <section className="cd-sect">
-                            <div className="info-social">
-                                <h4 className="info"><b>Tags:</b> {(post.tags || []).join(' ').replace(/[\[\]"]/g, '') || "—"}</h4>
-                                <h4 className="info"><b>Likes:</b> {post.likes}</h4>
-                                <h4 className="info"><b>Saves:</b> {post.saves}</h4>
-                            </div>
-                        </section>
-                    </div>
-                </motion.div>
-            </AnimatePresence>
+                        <div className="card-details-player">
+                            <AudioPlayer
+                                autoPlay
+                                loop={true}
+                                src={audio}
+                                showJumpControls={false}
+                                showSkipControls={false}
+                                showDownloadProgress={false}
+                                customAdditionalControls={[]}
+                                volume={0.2}
+                            />
+                        </div>
+                    </section>
+
+                    <section className="card-details-sidebar">
+                        <div className="card-details-stat-grid">
+                            {statCards.map((item) => (
+                                <article key={item.label} className="card-stat">
+                                    <span>{item.label}</span>
+                                    <strong>{item.value}</strong>
+                                </article>
+                            ))}
+                        </div>
+
+                        <div className="card-details-meta-grid">
+                            {metaCards.map((item) => (
+                                <article key={item.label} className="card-meta-block">
+                                    <span>{item.label}</span>
+                                    <p>{item.value}</p>
+                                </article>
+                            ))}
+                        </div>
+
+                        <article className="card-meta-block card-meta-block-wide">
+                            <span>Tags</span>
+                            <p>{tags || 'No tags yet'}</p>
+                        </article>
+
+                        <article className="card-meta-block card-meta-block-wide">
+                            <span>Description</span>
+                            <p>{post.description || 'No description added yet.'}</p>
+                        </article>
+                    </section>
+                </div>
+            </motion.div>
         </motion.div>
     );
 };

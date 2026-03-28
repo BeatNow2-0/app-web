@@ -1,230 +1,239 @@
-.audio-player {
-    height: 0;
-    visibility: visible !important;
-    justify-content: center;
-    display: flex;
-    transition: opacity 1s; /* Asegúrate de que la transición esté aquí */
-}
-
-.audio-player.visible {
-    opacity: 1;
-    transition: opacity .7s; /* Transición al aparecer */
-}
-
-.audio-player.hidden {
-    opacity: 0;
-    transition: opacity 1.2s; /* Transición al desaparecer */
-}
-
-
 .card-details-popup {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    inset: 0;
+    padding: 24px;
+    background: rgba(5, 6, 15, 0.78);
+    backdrop-filter: blur(12px);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1002;
+    z-index: 1300;
 }
 
 .rhap_time {
-    color: white !important;
-    visibility: visible !important;
-    z-index: 100 !important;
+    color: rgba(255, 255, 255, 0.88) !important;
 }
 
-.rhap_main rhap_stacked {
+.rhap_container {
+    color: white;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+.rhap_progress-section {
+    margin-left: 0 !important;
+}
+
+.rhap_progress-bar {
+    background-color: rgba(255, 255, 255, 0.14) !important;
+    border-radius: 10px !important;
+}
+
+.rhap_progress-filled {
+    background: linear-gradient(90deg, #ec4899, #8731e4) !important;
+    border-radius: 10px !important;
+}
+
+.rhap_progress-indicator {
+    background: #fff !important;
+}
+
+.card-details-content {
+    color: white;
+    position: relative;
+    width: min(1120px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow: auto;
+    padding: 28px;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      radial-gradient(circle at top left, rgba(236, 72, 153, 0.18), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(135, 49, 228, 0.2), transparent 30%),
+      linear-gradient(180deg, rgba(60, 15, 75, 0.96), rgba(18, 11, 34, 0.98));
+    box-shadow: 0 32px 90px rgba(0, 0, 0, 0.52);
+}
+
+.card-details-header {
     display: flex;
-    justify-content: center !important;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
 }
 
-.rhap_controls-section {
-    height: 0 !important;
-    width: 0 !important;
+.card-details-heading h1 {
+    margin: 6px 0 0;
+    font-size: clamp(2rem, 4vw, 3.15rem);
+}
+
+.card-details-eyebrow {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #c9a6ff;
+    font-size: 0.78rem;
+}
+
+.card-details-subtitle {
+    margin: 10px 0 0;
+    color: rgba(255, 255, 255, 0.72);
+    line-height: 1.6;
+    max-width: 620px;
+}
+
+.card-details-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.card-details-hero,
+.card-details-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.card-image-shell {
+    position: relative;
+    overflow: hidden;
+    border-radius: 26px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px;
+}
+
+.card-image-shell::after {
+    content: "";
+    position: absolute;
+    inset: auto 14px 14px 14px;
+    height: 34%;
+    border-radius: 0 0 22px 22px;
+    background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.45));
+    pointer-events: none;
+}
+
+.card-details-image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 22px;
+}
+
+.card-details-player,
+.card-meta-block,
+.card-stat {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 22px;
+}
+
+.card-details-player {
+    padding: 16px 18px;
+}
+
+.card-details-stat-grid,
+.card-details-meta-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.card-details-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card-details-meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card-stat {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.card-stat span,
+.card-meta-block span {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.card-stat strong {
+    font-size: 1.15rem;
+    line-height: 1.35;
+}
+
+.card-meta-block {
+    padding: 18px;
+}
+
+.card-meta-block p {
+    margin: 10px 0 0;
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.card-meta-block-wide {
+    min-height: 100%;
+}
+
+.card-closeBtn {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: none;
+    width: 46px;
+    height: 46px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 700;
+    flex-shrink: 0;
 }
 
 .rhap_volume-controls {
     display: none !important;
 }
 
-.rhap_container {
-    margin-top: 25px;
-    color: white;
-    background-color: transparent !important;
-    max-width: 500px;
-    box-shadow: none !important;
-    padding: 0 15px !important;
-}
-
-.rhap_progress-section {
-    margin-top: 85% !important;
-    width: 90%;
-    align-self: center !important;
-}
-
-.rhap_container svg, .rhap_button-clear, .rhap_main-controls {
-    height: 100px !important;
-    width: 100px !important;
+.rhap_container svg,
+.rhap_button-clear,
+.rhap_main-controls {
     color: white !important;
-    position: absolute;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 100 !important;
-    align-self: center !important;
 }
 
-.rhap_button-clear {
-    background-color: transparent !important;
-    border: none !important;
-    overflow: unset !important;
+@media (max-width: 900px) {
+    .card-details-layout {
+        grid-template-columns: 1fr;
+    }
 }
 
-.rhap_progress-bar {
-    background-color: #222 !important;
-    border-radius: 10px !important;
-}
+@media (max-width: 640px) {
+    .card-details-popup {
+        padding: 12px;
+        align-items: stretch;
+    }
 
-.rhap_progress-filled {
-    background-color: white !important;
-    border-radius: 10px !important;
-}
+    .card-details-content {
+        max-height: none;
+        padding: 18px;
+        border-radius: 24px;
+    }
 
-.rhap_progress-indicator {
-    background: white !important;
-}
+    .card-details-stat-grid,
+    .card-details-meta-grid {
+        grid-template-columns: 1fr;
+    }
 
-.card-details-content {
-    color: white;
-    position: relative;
-    background-color: #3C0F4B;
-    padding: 30px;
-    border-radius: 20px;
-    width: 500px;
-    min-height: 150px;
-}
-
-.card-details-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-
-.card-details-info {
-    justify-content: flex-start;
-    display: flex;
-    align-items: start;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    padding-left: 5%;
-}
-
-
-.card-image-container {
-    position: relative;
-    display: flex;
-    width: 400px; /* Ajusta según tus necesidades */
-    height: 400px; /* Ajusta según tus necesidades */
-    justify-content: center;
-}
-
-.card-details-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    justify-self: center;
-}
-.card-details-image {
-    justify-self: center;
-    border-radius: 25px;
-    width: 400px;
-    height: 400px;
-    object-fit: cover;
-    object-position: center;
-    margin-bottom: 5%;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
-}
-
-.audio-player {
-    position: absolute;
-    justify-self: center;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    visibility: visible !important;
-    transition: opacity 1s;
-}
-
-.audio-player.visible {
-    opacity: 1;
-    transition: opacity .7s;
-}
-
-.audio-player.hidden {
-    opacity: 0;
-    transition: opacity 1.2s;
-}
-
-.rhap_container svg, .rhap_button-clear, .rhap_main-controls {
-    height: 100px !important;
-    width: 100px !important;
-    color: white !important;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 100 !important;
-}
-
-
-
-.card-image-gradient::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 50%; /* Ajusta este valor para cambiar la altura del gradiente */
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
-    border-radius: 25px;
-}
-
-
-
-.info {
-    font-size: 20px;
-    padding-top: 2%;
-    margin-right: 2%;
-}
-
-.card-closeBtn {
-    background-color: transparent;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    text-decoration: none;
-    font-family: 'Roboto', sans-serif;
-    font-size: 30px;
-}
-
-.info-social {
-    min-width: 40%;
-    max-width: 50%;
-}
-
-.info-data {
-    min-width: 40%;
-    max-width: 50%;
-    margin-right: 5%;
+    .card-closeBtn {
+        width: 42px;
+        height: 42px;
+    }
 }

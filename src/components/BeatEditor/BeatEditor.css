@@ -1,7 +1,7 @@
 .beat-editor-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 6, 15, 0.72);
+  background: rgba(5, 6, 15, 0.76);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -38,6 +38,13 @@
   font-size: 30px;
 }
 
+.beat-editor-subtitle {
+  margin: 10px 0 0;
+  max-width: 560px;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.6;
+}
+
 .beat-editor-eyebrow {
   margin: 0;
   font-size: 12px;
@@ -50,26 +57,40 @@
   border: none;
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 999px;
   cursor: pointer;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .beat-editor-form {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 28px;
 }
 
-.beat-editor-cover img,
+.beat-editor-cover-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.beat-editor-cover-frame {
+  padding: 16px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.beat-editor-cover-frame img,
 .beat-editor-cover-empty {
   width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: 22px;
   object-fit: cover;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .beat-editor-cover-empty {
@@ -108,13 +129,13 @@
   gap: 16px;
 }
 
-.beat-editor-fields label {
+.beat-editor-field {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.beat-editor-fields span {
+.beat-editor-field span {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.72);
 }
@@ -128,6 +149,35 @@
   padding: 13px 14px;
   font: inherit;
   resize: vertical;
+}
+
+.beat-editor-fields .select-container {
+  width: 100%;
+}
+
+.beat-editor-fields .select-container .select {
+  margin-top: 0;
+}
+
+.beat-editor-fields .rti--container {
+  --rti-bg: #0f111b !important;
+  --rti-border: 1px solid rgba(148, 163, 184, 0.14) !important;
+  --rti-main: transparent !important;
+  --rti-radius: 16px !important;
+  --rti-s: 8px !important;
+  --rti-tag: #3c0f4b !important;
+  --rti-tag-remove: #f04438 !important;
+  min-height: 58px;
+  padding: 12px 16px !important;
+  color: white;
+}
+
+.beat-editor-fields .rti--input {
+  color: white !important;
+}
+
+.beat-editor-fields .rti--tag {
+  border-radius: 999px !important;
 }
 
 .beat-editor-grid {
@@ -173,15 +223,33 @@
   .beat-editor-form {
     grid-template-columns: 1fr;
   }
+
+  .beat-editor-cover-panel {
+    order: 2;
+  }
 }
 
 @media (max-width: 640px) {
+  .beat-editor-overlay {
+    padding: 12px;
+    align-items: stretch;
+  }
+
   .beat-editor-modal {
-    padding: 20px;
+    max-height: none;
+    padding: 18px;
     border-radius: 22px;
   }
 
   .beat-editor-grid {
     grid-template-columns: 1fr;
+  }
+
+  .beat-editor-actions {
+    flex-direction: column-reverse;
+  }
+
+  .beat-editor-actions button {
+    width: 100%;
   }
 }

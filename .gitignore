@@ -23,6 +23,7 @@ yarn-error.log*
 
 # Archivos del sistema operativo
 .DS_Store
+._*
 
 # Idea y VSCode configuraciones específicas (opcional)
 .idea/
