@@ -25,6 +25,9 @@ interface Beat {
   beatPic: File | null;
 }
 
+const SUPPORTED_AUDIO_TYPES = ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a'];
+const SUPPORTED_IMAGE_TYPES = ['image/gif', 'image/jpeg', 'image/jpg', 'image/png'];
+
 function Upload() {
   const [activeTab, setActiveTab] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -182,12 +185,22 @@ function Upload() {
         beatDescription: description,
         beatPic: selectedImgFile,
       });
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await uploadBeat();
+      await uploadBeat({
+        beatUsername: username,
+        beatFile: selectedMusicFile,
+        beatTitle: title,
+        beatBpm: parseInt(bpmValue),
+        beatTags: tags,
+        beatMoods: moods,
+        beatGenre: genre,
+        beatInstruments: instruments,
+        beatDescription: description,
+        beatPic: selectedImgFile,
+      });
     }
   };
 
-  async function uploadBeat() {
+  async function uploadBeat(beatToUpload: Beat) {
     setIsLoading(true);
 
     const url = buildApiUrl('/v1/api/posts/upload');
@@ -197,19 +210,19 @@ function Upload() {
     };
 
     const formData = new FormData();
-    formData.append('cover_file', beat.beatPic as Blob);
-    formData.append('audio_file', beat.beatFile as Blob);
-    formData.append('description', beat.beatDescription);
-    formData.append('genre', beat.beatGenre);
-    formData.append('tags', JSON.stringify(beat.beatTags));
-    formData.append('moods', JSON.stringify(beat.beatMoods));
-    formData.append('instruments', JSON.stringify(beat.beatInstruments));
-    formData.append('bpm', beat.beatBpm.toString());
-    formData.append('title', beat.beatTitle);
+    formData.append('cover_file', beatToUpload.beatPic as Blob, beatToUpload.beatPic?.name);
+    formData.append('audio_file', beatToUpload.beatFile as Blob, beatToUpload.beatFile?.name);
+    formData.append('description', beatToUpload.beatDescription);
+    formData.append('genre', beatToUpload.beatGenre);
+    formData.append('tags', JSON.stringify(beatToUpload.beatTags));
+    formData.append('moods', JSON.stringify(beatToUpload.beatMoods));
+    formData.append('instruments', JSON.stringify(beatToUpload.beatInstruments));
+    formData.append('bpm', beatToUpload.beatBpm.toString());
+    formData.append('title', beatToUpload.beatTitle);
 
     try {
       const response = await axios.post(url, formData, { headers });
-      if (response.status === 200) {
+      if (response.status >= 200 && response.status < 300) {
         console.log('Beat uploaded successfully.');
         setMessage('Beat uploaded successfully.');
         setShowPopup(true);
@@ -217,7 +230,11 @@ function Upload() {
       }
     } catch (error) {
       console.error('Error uploading beat:', error);
-      setMessage('Error uploading beat. Please try again.');
+      if (axios.isAxiosError(error)) {
+        setMessage(error.response?.data?.detail || 'Error uploading beat. Please try again.');
+      } else {
+        setMessage('Error uploading beat. Please try again.');
+      }
       setShowPopup(true);
     } finally {
       setIsLoading(false);
@@ -284,8 +301,8 @@ function Upload() {
 
   const onFileInputChange1 = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files ? event.target.files[0] : null;
-    if (file && !['audio/wav', 'audio/mpeg', 'audio/flac'].includes(file.type)) {
-      setMessage('File format not supported. Please upload a .wav, .mp3, or .flac file');
+    if (file && !SUPPORTED_AUDIO_TYPES.includes(file.type)) {
+      setMessage('File format not supported. Please upload a .wav, .mp3, or .m4a file');
       setShowPopup(true);
     } else {
       setSelectedMusicFile(file);
@@ -296,8 +313,7 @@ function Upload() {
     const file = event.target.files ? event.target.files[0] : null;
     if (file) {
       const fileType = file.type;
-      const validImageTypes = ['image/gif', 'image/jpeg', 'image/jpg', 'image/png'];
-      if (validImageTypes.includes(fileType)) {
+      if (SUPPORTED_IMAGE_TYPES.includes(fileType)) {
         setSelectedImgFile(file);
         setBeat({
           ...beat,
