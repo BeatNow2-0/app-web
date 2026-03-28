@@ -62,6 +62,10 @@ class UserSingleton {
         return this.photoProfile;
     }
 
+    public setPhotoProfile(photoProfile: string) {
+        this.photoProfile = photoProfile;
+    }
+
     public setIsActive(is_active: boolean) {
         this.is_active = is_active;
     }

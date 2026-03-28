@@ -13,6 +13,7 @@ export interface UserData {
   id: string;
   is_active: boolean;
   bio?: string | null;
+  profile_image_url?: string | null;
 }
 
 export interface RegistrationPayload {

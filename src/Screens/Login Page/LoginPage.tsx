@@ -44,6 +44,9 @@ function LoginPage() {
     user.setUsername(userData.username);
     user.setEmail(userData.email);
     user.setId(userData.id);
+    if (userData.profile_image_url) {
+      user.setPhotoProfile(userData.profile_image_url);
+    }
     user.setIsActive(userData.is_active);
   };
 

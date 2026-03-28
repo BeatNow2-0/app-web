@@ -18,7 +18,7 @@ const ListBeat: React.FC = () => {
       try {
         const user = UserSingleton.getInstance();
         const username = user.getUsername();
-        const response = await fetch(buildApiUrl(`/v1/api/posts/user/${username}`));
+        const response = await fetch(buildApiUrl(`/v1/api/users/posts/${username}`));
         if (!response.ok) {
           throw new Error("Network response was not ok");
         }
