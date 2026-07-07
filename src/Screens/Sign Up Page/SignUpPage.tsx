@@ -9,8 +9,9 @@ import LoadingPopup from '../../components/Loading/Loading';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import {
   checkAvailability,
+  persistSession,
   registerUser,
-  requestAccessToken,
+  requestLogin,
   sendConfirmationEmail,
 } from '../../Model/api/auth';
 
@@ -115,14 +116,15 @@ function SignUpPage() {
         is_active: false,
       });
 
-      const accessToken = await requestAccessToken({
+      const session = await requestLogin({
         username: form.username,
         password: form.password,
       });
-      setToken(accessToken);
+      persistSession(session);
+      setToken(session.access_token);
 
       try {
-        await sendConfirmationEmail(accessToken);
+        await sendConfirmationEmail(session.access_token);
       } catch (emailError) {
         console.error('Error sending confirmation email:', emailError);
       }

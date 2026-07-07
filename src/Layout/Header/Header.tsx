@@ -7,6 +7,7 @@ import Profile, { User as ProfileUser } from '../../components/Profile/Profile';
 import CustomPopup from '../../components/Popup/CustomPopup';
 import './Header.css';
 import {
+  clearStoredSession,
   fetchUserProfile,
   resetProfilePhoto,
   updateUserProfile,
@@ -59,7 +60,7 @@ function Header() {
 
   const handleLogout = () => {
     closeDropdown();
-    localStorage.removeItem('token');
+    clearStoredSession();
     UserSingleton.getInstance().clear();
     window.location.href = '/';
   };
@@ -185,7 +186,7 @@ const handleSaveProfile = async (updated: ProfileUser & { photoFile?: File | nul
 
     // success: logout and redirect home
     UserSingleton.getInstance().clear();
-    localStorage.removeItem('token');
+    clearStoredSession();
     window.location.href = '/';
   } catch (err) {
     console.error('handleDeleteAccount error', err);

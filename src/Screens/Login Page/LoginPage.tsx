@@ -12,7 +12,8 @@ import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import {
   Credentials,
   fetchUserProfile,
-  requestAccessToken,
+  persistSession,
+  requestLogin,
   UserData,
 } from '../../Model/api/auth';
 
@@ -59,17 +60,17 @@ function LoginPage() {
         throw new Error('Please fill in all fields.');
       }
 
-      const accessToken = await requestAccessToken(credentials);
-      localStorage.setItem('token', accessToken);
-      setToken(accessToken);
+      const session = await requestLogin(credentials);
+      persistSession(session);
+      setToken(session.access_token);
 
-      const profile = await fetchUserProfile(accessToken);
+      const profile = await fetchUserProfile(session.access_token);
       populateUser(profile);
 
       if (!profile.is_active) {
         setShowVerifyPopup(true);
       } else {
-        navigateToDashboard(accessToken);
+        navigateToDashboard(session.access_token);
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'An unknown error occurred.');

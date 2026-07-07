@@ -36,6 +36,9 @@ interface LoginResponse {
   token_type: string;
 }
 
+const ACCESS_TOKEN_STORAGE_KEY = 'token';
+const REFRESH_TOKEN_STORAGE_KEY = 'refresh_token';
+
 const getApiErrorMessage = (error: unknown, fallback: string) => {
   if (axios.isAxiosError(error)) {
     const detail = error.response?.data?.detail;
@@ -79,6 +82,18 @@ export async function requestLogin({ username, password }: Credentials): Promise
 export async function requestAccessToken({ username, password }: Credentials): Promise<string> {
   const response = await requestLogin({ username, password });
   return response.access_token;
+}
+
+export function persistSession(loginResponse: LoginResponse): void {
+  localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, loginResponse.access_token);
+  if (loginResponse.refresh_token) {
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, loginResponse.refresh_token);
+  }
+}
+
+export function clearStoredSession(): void {
+  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
 }
 
 export async function fetchUserProfile(token: string): Promise<UserData> {

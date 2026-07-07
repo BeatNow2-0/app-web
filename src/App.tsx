@@ -14,6 +14,7 @@ import CustomPopup from './components/Popup/CustomPopup';
 import ForgotPwdPage from "./Screens/ForgotPwd Page/ForgotPwdPage";
 import Stats from './Screens/StatsPage/Stats';
 import NotFound from './Screens/NotFoundPage/NotFound';
+import { clearStoredSession } from './Model/api/auth';
 
 const CheckToken = () => {
     const timeout = 3000;
@@ -21,7 +22,7 @@ const CheckToken = () => {
     const [showPopup, setShowPopup] = useState(false);
     const intervalRef = useRef<number | null>(null);
     const logout = () => {
-        localStorage.removeItem("token");
+        clearStoredSession();
         setShowPopup(true);
     }
 
