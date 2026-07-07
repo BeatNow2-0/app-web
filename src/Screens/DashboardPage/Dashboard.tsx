@@ -146,6 +146,9 @@ function Dashboard() {
     };
   }, [posts]);
 
+  const featuredBeat = popularPosts[0] ?? recentPosts[0];
+  const recentDrop = recentPosts[0];
+
 
   return (
     <div className="dashboard-page">
@@ -184,6 +187,75 @@ function Dashboard() {
               </button>
             </div>
           </div>
+
+          <section className="dashboard-spotlight">
+            <article className="dashboard-hero-card">
+              <div className="dashboard-hero-copy">
+                <span className="dashboard-chip">Studio snapshot</span>
+                <h2>Your catalog is building momentum.</h2>
+                <p>
+                  Keep your strongest artwork visible, tighten metadata and push the next beat while attention is still warm.
+                </p>
+                <div className="dashboard-hero-actions">
+                  <button className="dashboard-ghost-button" onClick={() => navigate("/Beats")}>
+                    Open catalog
+                  </button>
+                  <button
+                    className="dashboard-ghost-button dashboard-ghost-button--accent"
+                    onClick={() => navigate("/Stats")}
+                  >
+                    Review stats
+                  </button>
+                </div>
+              </div>
+
+              <div className="dashboard-hero-panel">
+                <div className="dashboard-panel-head">
+                  <span>Live pulse</span>
+                  <strong>{currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</strong>
+                </div>
+                <div className="dashboard-panel-grid">
+                  <div>
+                    <span>Featured beat</span>
+                    <strong>{featuredBeat?.title || "No beats yet"}</strong>
+                  </div>
+                  <div>
+                    <span>Latest drop</span>
+                    <strong>{recentDrop?.title || "Ready when you are"}</strong>
+                  </div>
+                  <div>
+                    <span>Momentum score</span>
+                    <strong>{Math.round(featuredBeat?.trendingScore || 0)}</strong>
+                  </div>
+                  <div>
+                    <span>Catalog health</span>
+                    <strong>{posts.length > 0 ? "Active" : "Empty"}</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <div className="dashboard-mini-rail">
+              <article className="dashboard-mini-card">
+                <span>This week</span>
+                <strong>
+                  {
+                    recentPosts.filter(
+                      (post) =>
+                        Date.now() - new Date(post.publication_date).getTime() <
+                        1000 * 60 * 60 * 24 * 7,
+                    ).length
+                  }
+                </strong>
+                <p>Fresh uploads in the last 7 days.</p>
+              </article>
+              <article className="dashboard-mini-card">
+                <span>Best performer</span>
+                <strong>{featuredBeat?.title || "—"}</strong>
+                <p>Most competitive beat in your current ranking.</p>
+              </article>
+            </div>
+          </section>
 
           <section className="dashboard-kpis">
             <article className="dashboard-kpi-card">
@@ -279,6 +351,13 @@ function Dashboard() {
                             {/* placeholder para sparkline: puedes meter aquí un pequeño SVG o componente */}
                             <span className="small-kpi">Score: {Math.round(trendingScore)}</span>
                           </div>
+                          <div className="row-tags">
+                            {post.genre && <span>{post.genre}</span>}
+                            {post.bpm && <span>{post.bpm} BPM</span>}
+                            {(post.tags || []).slice(0, 2).map((tag) => (
+                              <span key={`${post._id}-${tag}`}>#{tag}</span>
+                            ))}
+                          </div>
                         </div>
                       </motion.div>
                     );
@@ -323,6 +402,7 @@ function Dashboard() {
                         <span>
                           <i className="fa-regular fa-bookmark" /> {post.saves}
                         </span>
+                        {post.genre && <span>{post.genre}</span>}
                       </div>
                     </motion.div>
                   ))}

@@ -142,6 +142,12 @@ export default function BeatsPage() {
                       <div>
                         <h3>{beat.title}</h3>
                         <p>{beat.genre || 'No genre'} · {new Date(beat.publication_date).toLocaleDateString()}</p>
+                        <div className="beats-tags">
+                          {beat.bpm ? <span>{beat.bpm} BPM</span> : null}
+                          {(beat.tags || []).slice(0, 3).map((tag) => (
+                            <span key={`${beat._id}-${tag}`}>#{tag}</span>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
