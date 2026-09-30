@@ -1,4 +1,4 @@
-import React, { FormEvent, useEffect, useMemo, useState } from 'react';
+import React, { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import rightarrow from '../../assets/siguiente-pista.png';
 import './Upload.css';
@@ -11,6 +11,7 @@ import { useSpring, animated } from '@react-spring/web';
 import Loading from '../../components/Loading/Loading';
 import { buildApiUrl } from '../../config/apiConfig';
 import { genresList, instrumentsList, moodsList } from '../../constants/beatFormOptions';
+import { clearStoredSession } from '../../Model/api/auth';
 
 interface Beat {
   beatUsername: string;
@@ -25,8 +26,10 @@ interface Beat {
   beatPic: File | null;
 }
 
-const SUPPORTED_AUDIO_TYPES = ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a'];
-const SUPPORTED_IMAGE_TYPES = ['image/gif', 'image/jpeg', 'image/jpg', 'image/png'];
+const SUPPORTED_AUDIO_TYPES = ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/flac', 'audio/x-flac'];
+const SUPPORTED_IMAGE_TYPES = ['image/gif', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const MAX_AUDIO_BYTES = 200 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 function Upload() {
   const [activeTab, setActiveTab] = useState(0);
@@ -64,19 +67,25 @@ function Upload() {
   });
   const [next, setNext] = useState(false);
   const [dragTarget, setDragTarget] = useState<'audio' | 'cover' | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const navigate = useNavigate();
   const audioInputRef = React.useRef<HTMLInputElement>(null);
   const coverInputRef = React.useRef<HTMLInputElement>(null);
+  const uploadControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    const savedGenre = localStorage.getItem('genre');
-    const savedMoods = JSON.parse(localStorage.getItem('moods') || '[]');
-    const savedInstruments = JSON.parse(localStorage.getItem('instruments') || '[]');
-
-    setGenre(savedGenre || '');
-    setMoods(savedMoods);
-    setInstruments(savedInstruments);
+    try {
+      const savedGenre = localStorage.getItem('genre');
+      const savedMoods = JSON.parse(localStorage.getItem('moods') || '[]');
+      const savedInstruments = JSON.parse(localStorage.getItem('instruments') || '[]');
+      setGenre(savedGenre || '');
+      setMoods(Array.isArray(savedMoods) ? savedMoods : []);
+      setInstruments(Array.isArray(savedInstruments) ? savedInstruments : []);
+    } catch {
+      localStorage.removeItem('moods');
+      localStorage.removeItem('instruments');
+    }
   }, []);
 
   const slideAnimationInitial = useSpring({
@@ -109,12 +118,16 @@ function Upload() {
           console.log('Información del usuario:', response.data);
         }
       })
-      .catch(() => {
+      .catch((error) => {
         console.error('Error al obtener la información del usuario.');
-        setTokenExists(false);
+        const sessionExpired = axios.isAxiosError(error) && [401, 403].includes(error.response?.status || 0);
+        setTokenExists(!sessionExpired);
+        setMessage(sessionExpired ? 'Your session has expired. Please sign in again.' : 'Unable to load your profile. Check your connection and try again.');
         setShowPopup(true);
-        localStorage.removeItem('token');
-        navigate('/login');
+        if (sessionExpired) {
+          clearStoredSession();
+          navigate('/login');
+        }
       });
   }, [navigate]);
 
@@ -167,6 +180,7 @@ function Upload() {
 
   const handleSubmit2 = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isLoading) return;
     if (selectedImgFile === null) {
       setMessage('Please upload a cover image.');
       setShowPopup(true);
@@ -202,6 +216,9 @@ function Upload() {
 
   async function uploadBeat(beatToUpload: Beat) {
     setIsLoading(true);
+    setUploadProgress(0);
+    const controller = new AbortController();
+    uploadControllerRef.current = controller;
 
     const url = buildApiUrl('/v1/api/posts/upload');
     const headers = {
@@ -221,7 +238,14 @@ function Upload() {
     formData.append('title', beatToUpload.beatTitle);
 
     try {
-      const response = await axios.post(url, formData, { headers });
+      const response = await axios.post(url, formData, {
+        headers,
+        signal: controller.signal,
+        timeout: 10 * 60 * 1000,
+        onUploadProgress: (event) => {
+          if (event.total) setUploadProgress(Math.round((event.loaded / event.total) * 100));
+        },
+      });
       if (response.status >= 200 && response.status < 300) {
         console.log('Beat uploaded successfully.');
         setMessage('Beat uploaded successfully.');
@@ -230,16 +254,21 @@ function Upload() {
       }
     } catch (error) {
       console.error('Error uploading beat:', error);
-      if (axios.isAxiosError(error)) {
+      if (axios.isCancel(error)) {
+        setMessage('Upload cancelled. Your beat was not published.');
+      } else if (axios.isAxiosError(error)) {
         setMessage(error.response?.data?.detail || 'Error uploading beat. Please try again.');
       } else {
         setMessage('Error uploading beat. Please try again.');
       }
       setShowPopup(true);
     } finally {
+      uploadControllerRef.current = null;
       setIsLoading(false);
     }
   }
+
+  const cancelUpload = () => uploadControllerRef.current?.abort();
 
   const handleClose = () => {
     if (successfulUpload) {
@@ -301,8 +330,11 @@ function Upload() {
 
   const onFileInputChange1 = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files ? event.target.files[0] : null;
-    if (file && !SUPPORTED_AUDIO_TYPES.includes(file.type)) {
-      setMessage('File format not supported. Please upload a .wav, .mp3, or .m4a file');
+    if (file && (!SUPPORTED_AUDIO_TYPES.includes(file.type) || file.size === 0)) {
+      setMessage('Invalid audio file. Please upload a non-empty WAV, MP3, M4A, or FLAC file.');
+      setShowPopup(true);
+    } else if (file && file.size > MAX_AUDIO_BYTES) {
+      setMessage('The audio file must be 200 MB or smaller.');
       setShowPopup(true);
     } else {
       setSelectedMusicFile(file);
@@ -313,14 +345,14 @@ function Upload() {
     const file = event.target.files ? event.target.files[0] : null;
     if (file) {
       const fileType = file.type;
-      if (SUPPORTED_IMAGE_TYPES.includes(fileType)) {
+      if (SUPPORTED_IMAGE_TYPES.includes(fileType) && file.size > 0 && file.size <= MAX_IMAGE_BYTES) {
         setSelectedImgFile(file);
         setBeat({
           ...beat,
           beatPic: file,
         });
       } else {
-        setMessage('This file format is not supported.');
+        setMessage('Use a non-empty JPG, PNG, GIF, or WebP image up to 10 MB.');
         setShowPopup(true);
       }
     }
@@ -340,8 +372,8 @@ function Upload() {
     event.preventDefault();
     setDragTarget(null);
     const file = event.dataTransfer.files ? event.dataTransfer.files[0] : null;
-    if (file && !['audio/wav', 'audio/mpeg', 'audio/flac'].includes(file.type)) {
-      setMessage('File format not supported. Please upload a .wav, .mp3, or .flac file');
+    if (file && (!SUPPORTED_AUDIO_TYPES.includes(file.type) || file.size === 0 || file.size > MAX_AUDIO_BYTES)) {
+      setMessage('Use a non-empty WAV, MP3, M4A, or FLAC file up to 200 MB.');
       setShowPopup(true);
     } else {
       setSelectedMusicFile(file);
@@ -355,11 +387,10 @@ function Upload() {
     if (!file) {
       return;
     }
-    const validImageTypes = ['image/gif', 'image/jpeg', 'image/jpg', 'image/png'];
-    if (validImageTypes.includes(file.type)) {
+    if (SUPPORTED_IMAGE_TYPES.includes(file.type) && file.size > 0 && file.size <= MAX_IMAGE_BYTES) {
       setSelectedImgFile(file);
     } else {
-      setMessage('This file format is not supported.');
+      setMessage('Use a non-empty JPG, PNG, GIF, or WebP image up to 10 MB.');
       setShowPopup(true);
     }
   };
@@ -379,7 +410,13 @@ function Upload() {
   return (
     <div className="app upload-page">
       {showPopup && <CustomPopup message={message} onClose={handleClose} />}
-      {isLoading && <Loading message={loadingMessage} />}
+      {isLoading && (
+        <Loading
+          message={loadingMessage}
+          detail={uploadProgress ? `${uploadProgress}% uploaded` : 'Preparing files...'}
+          onCancel={cancelUpload}
+        />
+      )}
       <Header />
 
       <main className="upload-main">
@@ -437,7 +474,7 @@ function Upload() {
                       id="audioFileInput"
                       ref={audioInputRef}
                       style={{ display: 'none' }}
-                      accept=".wav,.mp3,.flac"
+                      accept=".wav,.mp3,.m4a,.flac,audio/wav,audio/mpeg,audio/mp4,audio/flac"
                       onChange={onFileInputChange1}
                     />
                     <div className="dropzone-copy">
@@ -447,7 +484,7 @@ function Upload() {
                       <p className="dropzone-description">
                         {selectedMusicFile
                           ? 'You can click here again if you want to replace it.'
-                          : 'Supported formats: .wav, .mp3 and .flac'}
+                          : 'WAV, MP3, M4A or FLAC · max 200 MB'}
                       </p>
                     </div>
                   </div>
@@ -587,7 +624,7 @@ function Upload() {
                         id="coverFileInput"
                         ref={coverInputRef}
                         style={{ display: 'none' }}
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
                         onChange={onFileInputChange2}
                       />
                       {selectedImgFile && imagePreviewUrl ? (
@@ -603,12 +640,14 @@ function Upload() {
                       ) : (
                         <div className="dropzone-copy">
                           <h3 className="dropzone-title">Upload your cover art here</h3>
-                          <p className="dropzone-description">Supported formats: .jpg, .png and .gif</p>
+                          <p className="dropzone-description">JPG, PNG, GIF or WebP · max 10 MB</p>
                         </div>
                       )}
                     </div>
-                    <button className="upload-btn" type="submit">
-                      <b>Upload Beat</b>
+                    {isLoading && <p role="status">Uploading: {uploadProgress}%</p>}
+                    {isLoading && <button className="upload-btn" type="button" onClick={cancelUpload}>Cancel upload</button>}
+                    <button className="upload-btn" type="submit" disabled={isLoading}>
+                      <b>{isLoading ? `Uploading ${uploadProgress}%` : 'Upload Beat'}</b>
                     </button>
                   </form>
                 </div>

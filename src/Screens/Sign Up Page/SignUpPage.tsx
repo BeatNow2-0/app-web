@@ -97,6 +97,7 @@ function SignUpPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (showLoading) return;
     const errorMessage = validateForm();
 
     if (errorMessage) {
@@ -133,7 +134,7 @@ function SignUpPage() {
       setShowPopup(false);
     } catch (error) {
       console.error('Error during registration:', error);
-      setMessage('Registration failed. Please try again.');
+      setMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.');
       setShowPopup(true);
     } finally {
       setShowLoading(false);
@@ -214,8 +215,8 @@ function SignUpPage() {
               />
             </div>
 
-            <button className="btn btn-primary" type="submit">
-              Sign up
+            <button className="btn btn-primary" type="submit" disabled={showLoading}>
+              {showLoading ? 'Creating account...' : 'Sign up'}
             </button>
           </form>
 

@@ -5,7 +5,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import CustomPopup from '../../components/Popup/CustomPopup';
 import UserSingleton from '../../Model/UserSingleton';
 import Header from '../../Layout/Header/Header';
-import { signInOrRegisterWithGoogle } from '../../Model/firebaseConfig';
 import LoadingPopup from '../../components/Loading/Loading';
 import VerifyPopup from '../../components/VerifyPopup/VerifyPopup';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
@@ -53,6 +52,7 @@ function LoginPage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (loading) return;
     setLoading(true);
 
     try {
@@ -79,11 +79,6 @@ function LoginPage() {
       setLoading(false);
     }
   };
-
-  function notAvailable() {
-    setMessage('This feature is not available yet.');
-    setShowPopup(true);
-  }
 
   return (
     <div className="app login-page">
@@ -127,33 +122,10 @@ function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-            <button className="btn btn-primary" type="submit">
-              Sign in
+            <button className="btn btn-primary" type="submit" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-
-          <div className="auth-separator">
-            <span>or continue with</span>
-          </div>
-
-          <div className="auth-social">
-            <button
-              className="social-button social-button--google"
-              onClick={signInOrRegisterWithGoogle}
-              type="button"
-            >
-              <img
-                src="https://img.icons8.com/color/48/000000/google-logo.png"
-                alt="Google"
-              />
-            </button>
-            <button className="social-button social-button--x" onClick={notAvailable} type="button">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.png"
-                alt="X"
-              />
-            </button>
-          </div>
 
           <p className="auth-note sign-up-cta">
             Don&apos;t have an account?{' '}

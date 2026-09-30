@@ -5,9 +5,11 @@ import './Loading.css';
 
 interface LoadingPopupProps {
     message: string;
+    detail?: string;
+    onCancel?: () => void;
 }
 
-const LoadingPopup: React.FC<LoadingPopupProps> = ({message}) => {
+const LoadingPopup: React.FC<LoadingPopupProps> = ({ message, detail, onCancel }) => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
@@ -23,7 +25,9 @@ const LoadingPopup: React.FC<LoadingPopupProps> = ({message}) => {
             <div className="loading-popup-container">
                 <div className="loading-popup-content">
                     <h2>{message}</h2>
+                    {detail && <p role="status">{detail}</p>}
                     <div className="spinner"></div>
+                    {onCancel && <button type="button" className="loading-cancel" onClick={onCancel}>Cancel</button>}
                 </div>
             </div>
         </div>

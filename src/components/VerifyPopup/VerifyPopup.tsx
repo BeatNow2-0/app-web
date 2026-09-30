@@ -13,6 +13,8 @@ const VerifyPopup: React.FC<VerifyPopupProps> = ({ token }) => {
   const [validToken, setValidToken] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState('');
 
   useEffect(() => {
     setIsVisible(true);
@@ -30,6 +32,10 @@ const VerifyPopup: React.FC<VerifyPopupProps> = ({ token }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting || verificationCode.length !== 6) {
+      setFeedback('Enter the complete six-digit code.');
+      return;
+    }
 
     const currentToken = validToken || localStorage.getItem('token');
     if (!currentToken) {
@@ -38,15 +44,21 @@ const VerifyPopup: React.FC<VerifyPopupProps> = ({ token }) => {
     }
 
     try {
+      setSubmitting(true);
+      setFeedback('');
       await confirmEmailCode(currentToken, verificationCode);
       handleClose();
       navigate('/Dashboard', { state: { token: currentToken } });
     } catch (error) {
       console.error('Error verifying code:', error);
+      setFeedback('The code is invalid or expired. Check it and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const resendCode = async () => {
+    if (submitting) return;
     const currentToken = validToken || localStorage.getItem('token');
     if (!currentToken) {
       console.error('No token found');
@@ -54,9 +66,14 @@ const VerifyPopup: React.FC<VerifyPopupProps> = ({ token }) => {
     }
 
     try {
+      setSubmitting(true);
       await sendConfirmationEmail(currentToken);
+      setFeedback('A new code has been sent.');
     } catch (error) {
       console.error('Error resending code:', error);
+      setFeedback('We could not resend the code. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -79,11 +96,12 @@ const VerifyPopup: React.FC<VerifyPopupProps> = ({ token }) => {
               value={verificationCode}
             />
           </div>
-          <button className="resend-button" type="button" onClick={resendCode}>
+          {feedback && <p role="status">{feedback}</p>}
+          <button className="resend-button" type="button" onClick={resendCode} disabled={submitting}>
             Resend code
           </button>
-          <button className="submit-verify" type="submit">
-            Submit
+          <button className="submit-verify" type="submit" disabled={submitting || verificationCode.length !== 6}>
+            {submitting ? 'Checking...' : 'Submit'}
           </button>
         </form>
       </div>
