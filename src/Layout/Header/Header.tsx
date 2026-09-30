@@ -62,7 +62,7 @@ function Header() {
     closeDropdown();
     clearStoredSession();
     UserSingleton.getInstance().clear();
-    window.location.href = '/';
+    window.location.href = '/login';
   };
 
   const closePopup = () => {

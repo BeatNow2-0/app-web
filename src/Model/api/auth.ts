@@ -110,7 +110,11 @@ export async function fetchUserProfile(token: string): Promise<UserData> {
       id: response.data.id ?? response.data._id ?? '',
     } satisfies UserData;
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to retrieve user information.'));
+    const profileError = new Error(getApiErrorMessage(error, 'Unable to retrieve user information.')) as Error & {
+      status?: number;
+    };
+    if (axios.isAxiosError(error)) profileError.status = error.response?.status;
+    throw profileError;
   }
 }
 

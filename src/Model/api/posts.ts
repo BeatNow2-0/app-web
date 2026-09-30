@@ -135,3 +135,17 @@ export async function updateBeat(token: string, postId: string, payload: BeatUpd
     throw new Error(getApiErrorMessage(error, 'Unable to update beat.'));
   }
 }
+
+export async function deleteBeat(token: string, postId: string): Promise<void> {
+  try {
+    await axios.delete(buildApiUrl(`/v1/api/posts/delete/${encodeURIComponent(postId)}`), {
+      headers: {
+        accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 20_000,
+    });
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Unable to delete beat. Please try again.'));
+  }
+}

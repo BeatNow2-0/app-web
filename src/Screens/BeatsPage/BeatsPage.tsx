@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Header from '../../Layout/Header/Header';
 import LeftSlide from '../../Layout/LeftSlide/LeftSlide';
 import UserSingleton from '../../Model/UserSingleton';
-import { BeatPost, fetchProducerPosts, updateBeat } from '../../Model/api/posts';
+import { BeatPost, deleteBeat, fetchProducerPosts, updateBeat } from '../../Model/api/posts';
 import BeatEditor from '../../components/BeatEditor/BeatEditor';
 import CustomPopup from '../../components/Popup/CustomPopup';
 import './BeatsPage.css';
@@ -23,6 +23,7 @@ export default function BeatsPage() {
   const [selectedBeat, setSelectedBeat] = useState<BeatPost | null>(null);
   const [message, setMessage] = useState('');
   const [showPopup, setShowPopup] = useState(false);
+  const [deletingBeatId, setDeletingBeatId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !username) {
@@ -71,6 +72,24 @@ export default function BeatsPage() {
     setSelectedBeat(null);
     setMessage('Beat updated successfully.');
     setShowPopup(true);
+  };
+
+  const handleDeleteBeat = async (beat: BeatPost) => {
+    if (!window.confirm(`Delete “${beat.title}”? This action cannot be undone.`)) return;
+
+    setDeletingBeatId(beat._id);
+    try {
+      await deleteBeat(token, beat._id);
+      setBeats((current) => current.filter((item) => item._id !== beat._id));
+      if (selectedBeat?._id === beat._id) setSelectedBeat(null);
+      setMessage('Beat deleted successfully.');
+      setShowPopup(true);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to delete beat.');
+      setShowPopup(true);
+    } finally {
+      setDeletingBeatId(null);
+    }
   };
 
   return (
@@ -126,7 +145,9 @@ export default function BeatsPage() {
             {loading ? (
               <div className="beats-empty">Loading beats...</div>
             ) : filteredBeats.length === 0 ? (
-              <div className="beats-empty">No beats match that search yet.</div>
+              <div className="beats-empty">
+                {beats.length === 0 ? 'Your catalog is empty. Upload your first beat to get started.' : 'No beats match that search.'}
+              </div>
             ) : (
               <div className="beats-table">
                 {filteredBeats.map((beat) => (
@@ -174,6 +195,14 @@ export default function BeatsPage() {
                     <div className="beats-cell beats-cell--actions">
                       <button type="button" onClick={() => setSelectedBeat(beat)}>
                         Edit metadata
+                      </button>
+                      <button
+                        type="button"
+                        className="beats-delete-button"
+                        disabled={deletingBeatId === beat._id}
+                        onClick={() => handleDeleteBeat(beat)}
+                      >
+                        {deletingBeatId === beat._id ? 'Deleting...' : 'Delete'}
                       </button>
                     </div>
                   </article>
