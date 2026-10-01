@@ -1,235 +1,142 @@
-import axios from 'axios';
-import { buildApiUrl } from '../../config/apiConfig';
+import type { AuthResponse, User } from '../../types/api';
+import { getUserId } from '../../utils/entities';
+import { apiClient, clearSessionTokens, getApiErrorMessage, getRefreshToken, persistSessionTokens } from './client';
 
-export interface Credentials {
-  username: string;
-  password: string;
+export interface Credentials { username: string; password: string }
+export type UserData = User & { id: string; full_name: string };
+export interface ProfileUpdatePayload { username?: string; full_name?: string; bio?: string | null }
+export interface RegistrationPayload { full_name: string; username: string; email: string; password: string }
+
+function normalizeUser(user: User): UserData {
+  return {
+    ...user,
+    id: getUserId(user),
+    full_name: user.full_name ?? '',
+    profile_image_url: user.profile_image_url ?? user.photo_profile ?? null,
+  };
 }
 
-export interface UserData {
-  full_name: string;
-  username: string;
-  email: string;
-  id: string;
-  is_active: boolean;
-  bio?: string | null;
-  profile_image_url?: string | null;
-}
-
-export interface ProfileUpdatePayload {
-  username?: string;
-  full_name?: string;
-  bio?: string | null;
-}
-
-export interface RegistrationPayload {
-  full_name: string;
-  username: string;
-  email: string;
-  password: string;
-  is_active?: boolean;
-}
-
-interface LoginResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-}
-
-const ACCESS_TOKEN_STORAGE_KEY = 'token';
-const REFRESH_TOKEN_STORAGE_KEY = 'refresh_token';
-
-const getApiErrorMessage = (error: unknown, fallback: string) => {
-  if (axios.isAxiosError(error)) {
-    const detail = error.response?.data?.detail;
-    if (typeof detail === 'string') {
-      return detail;
-    }
-    if (Array.isArray(detail) && detail.length > 0) {
-      return detail.map((item) => item.msg || 'Validation error').join(', ');
-    }
-  }
-  return fallback;
-};
-
-export async function requestLogin({ username, password }: Credentials): Promise<LoginResponse> {
-  const formData = new URLSearchParams();
-  formData.append('username', username);
-  formData.append('password', password);
-
+export async function requestLogin({ username, password }: Credentials): Promise<AuthResponse> {
+  const formData = new URLSearchParams({ username: username.trim(), password });
   try {
-    const response = await axios.post<LoginResponse>(buildApiUrl('/v1/api/users/login'), formData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        accept: 'application/json',
-      },
+    const { data } = await apiClient.post<AuthResponse>('/v1/api/users/login', formData, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      skipAuthRefresh: true,
     });
-    return response.data;
+    return data;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      const { status } = error.response;
-      if (status >= 400 && status < 500) {
-        throw new Error(getApiErrorMessage(error, 'Invalid username or password.'));
-      }
-      if (status >= 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-    }
-    throw new Error('Network error. Please check your connection.');
+    const status = (error as { response?: { status?: number } }).response?.status;
+    if (status === 401) throw new Error('Incorrect username or password.');
+    if (status === 403) throw new Error('This account is not active yet. Check your email for activation instructions.');
+    throw new Error(getApiErrorMessage(error, 'Unable to sign in.'));
   }
 }
 
-export async function requestAccessToken({ username, password }: Credentials): Promise<string> {
-  const response = await requestLogin({ username, password });
-  return response.access_token;
+export async function requestAccessToken(credentials: Credentials): Promise<string> {
+  return (await requestLogin(credentials)).access_token;
 }
 
-export function persistSession(loginResponse: LoginResponse): void {
-  localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, loginResponse.access_token);
-  if (loginResponse.refresh_token) {
-    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, loginResponse.refresh_token);
-  }
-}
+export function persistSession(session: AuthResponse): void { persistSessionTokens(session) }
+export function clearStoredSession(): void { clearSessionTokens() }
 
-export function clearStoredSession(): void {
-  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-}
-
-export async function fetchUserProfile(token: string): Promise<UserData> {
+export async function requestLogout(): Promise<void> {
+  const refreshToken = getRefreshToken();
   try {
-    const response = await axios.get(buildApiUrl('/v1/api/users/users/me'), {
-      headers: {
-        accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    if (refreshToken) await apiClient.post('/v1/api/users/logout', { refresh_token: refreshToken });
+  } finally {
+    clearSessionTokens();
+  }
+}
 
-    return {
-      ...response.data,
-      id: response.data.id ?? response.data._id ?? '',
-    } satisfies UserData;
+export async function fetchUserProfile(_token?: string, signal?: AbortSignal): Promise<UserData> {
+  try {
+    const { data } = await apiClient.get<User>('/v1/api/users/users/me', { signal });
+    return normalizeUser(data);
   } catch (error) {
-    const profileError = new Error(getApiErrorMessage(error, 'Unable to retrieve user information.')) as Error & {
-      status?: number;
-    };
-    if (axios.isAxiosError(error)) profileError.status = error.response?.status;
+    const profileError = new Error(getApiErrorMessage(error, 'Unable to load your profile.')) as Error & { status?: number };
+    profileError.status = (error as { response?: { status?: number } }).response?.status;
     throw profileError;
   }
 }
 
-export async function updateUserProfile(token: string, payload: ProfileUpdatePayload): Promise<UserData> {
+export async function fetchPublicProfile(userId: string): Promise<User> {
   try {
-    const response = await axios.put(buildApiUrl('/v1/api/users/users/me'), payload, {
-      headers: {
-        accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return {
-      ...response.data,
-      id: response.data.id ?? response.data._id ?? '',
-    } satisfies UserData;
+    const { data } = await apiClient.get<User>(`/v1/api/users/profile/${encodeURIComponent(userId)}`);
+    return data;
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to update profile.'));
+    throw new Error(getApiErrorMessage(error, 'Unable to load this profile.'));
   }
 }
 
-export async function uploadProfilePhoto(token: string, file: File): Promise<UserData> {
+export async function updateUserProfile(_token: string, payload: ProfileUpdatePayload): Promise<UserData> {
+  try {
+    const { data } = await apiClient.put<User>('/v1/api/users/users/me', payload);
+    return normalizeUser(data);
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Unable to update your profile.'));
+  }
+}
+
+export async function uploadProfilePhoto(_token: string, file: File): Promise<UserData> {
   const formData = new FormData();
   formData.append('file', file);
-
   try {
-    await axios.put(buildApiUrl('/v1/api/users/change_photo_profile'), formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return await fetchUserProfile(token);
+    await apiClient.put('/v1/api/users/change_photo_profile', formData);
+    return fetchUserProfile();
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to update profile photo.'));
+    throw new Error(getApiErrorMessage(error, 'Unable to update your profile photo.'));
   }
 }
 
-export async function resetProfilePhoto(token: string): Promise<UserData> {
+export async function resetProfilePhoto(_token: string): Promise<UserData> {
   try {
-    await axios.delete(buildApiUrl('/v1/api/users/delete_photo_profile'), {
-      headers: {
-        accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return await fetchUserProfile(token);
+    await apiClient.delete('/v1/api/users/delete_photo_profile');
+    return fetchUserProfile();
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to reset profile photo.'));
+    throw new Error(getApiErrorMessage(error, 'Unable to remove your profile photo.'));
   }
 }
 
-export async function registerUser(payload: RegistrationPayload): Promise<void> {
+export async function deleteAccount(): Promise<void> {
+  try { await apiClient.delete('/v1/api/users/delete') }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to delete your account.')) }
+}
+
+export async function registerUser(payload: RegistrationPayload): Promise<User> {
   try {
-    await axios.post(buildApiUrl('/v1/api/users/register'), payload, {
-      headers: { accept: 'application/json' },
-    });
+    const { data } = await apiClient.post<User>('/v1/api/users/register', payload);
+    return data;
   } catch (error) {
+    const response = (error as { response?: { status?: number; data?: { detail?: unknown } } }).response;
+    if (response?.status === 400 && typeof response.data?.detail === 'string' && /username|email/i.test(response.data.detail)) {
+      throw new Error('That username or email is already in use.');
+    }
     throw new Error(getApiErrorMessage(error, 'Registration failed. Please try again.'));
   }
 }
 
-// The provided OpenAPI schema does not expose username/email availability endpoints.
-// We keep this helper as a no-op so existing UI can remain responsive without calling invalid routes.
-export async function checkAvailability(_type?: 'email' | 'username', _value?: string): Promise<boolean> {
-  return true;
+export async function checkAvailability(_field?: 'email' | 'username', _value?: string): Promise<boolean> { return true }
+
+export async function sendConfirmationEmail(_token?: string): Promise<void> {
+  try { await apiClient.post('/v1/api/mail/send-confirmation') }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to send a new confirmation code.')) }
 }
 
-export async function sendConfirmationEmail(token: string): Promise<void> {
-  if (!token) {
-    return;
-  }
-
-  await axios.post(
-    buildApiUrl('/v1/api/mail/send-confirmation'),
-    {},
-    {
-      headers: {
-        accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  );
-}
-
-export async function confirmEmailCode(token: string, code: string): Promise<void> {
-  await axios.post(
-    buildApiUrl('/v1/api/mail/confirmation'),
-    { code },
-    {
-      headers: {
-        accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  );
+export async function confirmEmailCode(_token: string, code: string): Promise<void> {
+  try { await apiClient.post('/v1/api/mail/confirmation', { code }) }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'The code is invalid or expired.')) }
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  await axios.post(
-    buildApiUrl('/v1/api/mail/send-password-reset'),
-    { email },
-    {
-      headers: { accept: 'application/json' },
-    },
-  );
+  try { await apiClient.post('/v1/api/mail/send-password-reset', { email }) }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to request a password reset.')) }
 }
 
 export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
-  await axios.post(
-    buildApiUrl('/v1/api/mail/password-change'),
-    { token, new_password: newPassword },
-    {
-      headers: { accept: 'application/json' },
-    },
-  );
+  try { await apiClient.post('/v1/api/mail/password-change', { token, new_password: newPassword }) }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to change your password.')) }
+}
+
+declare module 'axios' {
+  export interface AxiosRequestConfig { skipAuthRefresh?: boolean }
 }

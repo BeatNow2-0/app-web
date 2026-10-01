@@ -8,9 +8,9 @@ npm install
 npm run dev
 ```
 
-Por defecto Vite arranca en `http://localhost:5173` y hace proxy de `/v1/api/*` a `http://127.0.0.1:8000`.
+Por defecto Vite arranca en `http://localhost:5173` y usa el backend definido en `VITE_API_URL`.
 
-Si tu backend escucha en otro puerto, cambia `VITE_API_PROXY_TARGET` en `.env.local`.
+Para trabajar contra un backend local, configura `VITE_API_URL=http://127.0.0.1:8000` en `.env.local`.
 
 ## Vercel
 
@@ -22,5 +22,5 @@ Si tu backend escucha en otro puerto, cambia `VITE_API_PROXY_TARGET` en `.env.lo
 Variables recomendadas en Vercel:
 
 ```bash
-VITE_API_BASE_URL=https://api.beatnow.app
+VITE_API_URL=https://api.beatnow.app
 ```

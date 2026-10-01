@@ -12,7 +12,7 @@ class UserSingleton {
         this.username = '';
         this.email = '';
         this.id = '';
-        this.photoProfile = this.generatePhotoProfileUrl();
+        this.photoProfile = '/avatar-fallback.svg';
         this.is_active = false;
     }
 
@@ -51,7 +51,6 @@ class UserSingleton {
 
     public setId(id: string) {
         this.id = id;
-        this.photoProfile = this.generatePhotoProfileUrl();
     }
 
     public getId() {
@@ -76,16 +75,12 @@ class UserSingleton {
 
 
 
-    private generatePhotoProfileUrl(): string {
-        return `https://res.beatnow.app/beatnow/${this.id}/photo_profile/photo_profile.png`;
-    }
-
     public clear() {
         this.full_name = '';
         this.username = '';
         this.email = '';
         this.id = '';
-        this.photoProfile = this.generatePhotoProfileUrl();
+        this.photoProfile = '/avatar-fallback.svg';
         this.is_active = false;
     }
 }

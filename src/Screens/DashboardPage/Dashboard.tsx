@@ -1,431 +1,54 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import Header from "../../Layout/Header/Header";
-import LeftSlide from "../../Layout/LeftSlide/LeftSlide";
-import UserSingleton from "../../Model/UserSingleton";
-import "./Dashboard.css";
-import CardDetails from "../../components/CardDetails/CardDetails";
-import CustomPopup from "../../components/Popup/CustomPopup";
-import { useNavigate } from "react-router-dom";
-import { fetchUserProfile } from "../../Model/api/auth";
-import { BeatPost, fetchProducerPosts } from "../../Model/api/posts";
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Headphones, Heart, Plus, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import BeatCard from '../../components/BeatCard/BeatCard';
+import { CardSkeleton, EmptyState, ErrorState } from '../../components/States/EmptyState';
+import UserSingleton from '../../Model/UserSingleton';
+import { fetchFeed, fetchProducerPosts } from '../../Model/api/posts';
+import type { Beat } from '../../types/api';
+import { formatCompactNumber, getBeatId } from '../../utils/entities';
+import './Dashboard.css';
 
-type PostWithScore = BeatPost & { trendingScore?: number };
+export default function Dashboard() {
+  const user = UserSingleton.getInstance();
+  const [catalog, setCatalog] = useState<Beat[]>([]);
+  const [feed, setFeed] = useState<Beat[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
 
-function Dashboard() {
-  const BACKEND_BASE = "https://res.beatnow.app";
+  const load = async (signal?: AbortSignal) => {
+    setLoading(true); setError('');
+    try {
+      const [ownBeats, feedBeats] = await Promise.all([fetchProducerPosts('', user.getUsername(), 50, 0, signal), fetchFeed(8, [], signal)]);
+      setCatalog(ownBeats); setFeed(feedBeats);
+    } catch (err) { if (!signal?.aborted) setError(err instanceof Error ? err.message : 'Unable to load your home feed.') }
+    finally { if (!signal?.aborted) setLoading(false) }
+  };
+  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort() }, []);
 
-  const navigate = useNavigate();
-  const [tokenExists, setTokenExists] = useState(true);
-  const [posts, setPosts] = useState<PostWithScore[]>([]);
-  const [popularPosts, setPopularPosts] = useState<PostWithScore[]>([]);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [selectedLayoutId, setSelectedLayoutId] = useState<string | null>(null);
-  const [showPopup, setShowPopup] = useState(false);
-  const [message, setMessage] = useState("");
+  const totals = useMemo(() => ({
+    plays: catalog.reduce((sum, beat) => sum + (beat.views || beat.plays || 0), 0),
+    likes: catalog.reduce((sum, beat) => sum + beat.likes, 0),
+    saves: catalog.reduce((sum, beat) => sum + beat.saves, 0),
+  }), [catalog]);
 
-  useEffect(() => {
-    checkUsername();
-    const username = UserSingleton.getInstance().getUsername();
-    const token = localStorage.getItem("token");
-
-    fetchProducerPosts(token || "", username)
-      .then((data) => {
-
-        // compute trending score for each post (uses optional plays_7d, likes_7d, saves_7d)
-        const computeTrending = (post: BeatPost): number => {
-          const plays = (post as any).plays_7d || (post.plays || 0);
-          const likes = (post as any).likes_7d || 0;
-          const saves = (post as any).saves_7d || 0;
-          const ageDays =
-            (Date.now() - new Date(post.publication_date).getTime()) /
-            (1000 * 60 * 60 * 24);
-          // simple formula — puedes ajustar pesos
-          const score = plays + likes * 2 + saves * 3 - ageDays * 0.2;
-          return Math.max(0, score);
-        };
-
-        const withScore: PostWithScore[] = data.map((p) => ({
-          ...p,
-          trendingScore: computeTrending(p),
-        }));
-
-        // ordenar por trendingScore descendente
-        const sortedByScore = [...withScore].sort(
-          (a, b) => (b.trendingScore || 0) - (a.trendingScore || 0)
-        );
-
-        setPosts(withScore);
-        setPopularPosts(sortedByScore);
-      })
-      .catch((error) => {
-        console.error("There was an error!", error);
-      });
-  }, []);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    fetchUserProfile(token || "")
-      .then(() => {})
-      .catch((error) => {
-        console.error("Error al obtener la información del usuario.");
-        setTokenExists(false);
-        setShowPopup(true);
-        localStorage.removeItem("token");
-        navigate("/login");
-      });
-  }, [navigate]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
-
-  function handleClick() {
-    navigate("/Upload", { state: { token: localStorage.getItem("token") } });
-  }
-
-  const handleCardClick = (postId: string, layoutId: string) => {
-    console.log(posts.find((post) => post._id === postId));
-    setSelectedPostId(postId);
-    setSelectedLayoutId(layoutId);
+  const loadMore = async () => {
+    if (loadingMore) return; setLoadingMore(true);
+    try {
+      const next = await fetchFeed(8, feed.map(getBeatId));
+      setFeed((current) => [...current, ...next.filter((beat) => !current.some((item) => getBeatId(item) === getBeatId(beat))) ]);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to load more beats.') }
+    finally { setLoadingMore(false) }
   };
 
-  const handleCloseCardDetails = () => {
-    setSelectedPostId(null);
-    setSelectedLayoutId(null);
-  };
-
-  const selectedPost = posts.find((post) => post._id === selectedPostId);
-
-  function checkUsername() {
-    const username = UserSingleton.getInstance().getUsername();
-    if (username === "" || username === null) {
-      setMessage("Session has expired, redirecting to landing page.");
-      setShowPopup(true);
-    }
-  }
-
-  // Posts recientes ordenados por fecha sin mutar el state original
-  const recentPosts = [...posts].sort(
-    (a, b) =>
-      new Date(b.publication_date).getTime() -
-      new Date(a.publication_date).getTime()
-  );
-
-  // calcula un umbral dinámico para "isTrending" (top 20% de scores)
-  const trendingThreshold = React.useMemo(() => {
-    const scores = posts
-      .map((p) => p.trendingScore || 0)
-      .sort((a, b) => b - a);
-    if (scores.length === 0) return 0;
-    const idx = Math.max(0, Math.floor(scores.length * 0.2) - 1); // top 20%
-    return scores[idx] ?? scores[scores.length - 1];
-  }, [posts]);
-
-  const makeImageUrl = (post: BeatPost) =>
-    post.cover_image_url ||
-    `${BACKEND_BASE}/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/caratula.${post.cover_format}`;
-
-  const makeAudioUrl = (post: BeatPost) =>
-    post.audio_url ||
-    `${BACKEND_BASE}/beatnow/${UserSingleton.getInstance().getId()}/posts/${post._id}/audio.${post.audio_format}`;
-
-  const dashboardTotals = React.useMemo(() => {
-    return {
-      beats: posts.length,
-      likes: posts.reduce((sum, post) => sum + (post.likes || 0), 0),
-      saves: posts.reduce((sum, post) => sum + (post.saves || 0), 0),
-      plays: posts.reduce((sum, post) => sum + (post.views || post.plays || 0), 0),
-    };
-  }, [posts]);
-
-  const featuredBeat = popularPosts[0] ?? recentPosts[0];
-  const recentDrop = recentPosts[0];
-
-
-  return (
-    <div className="dashboard-page">
-      {showPopup && (
-        <CustomPopup
-          message={message}
-          onClose={() => (window.location.href = "/")}
-        />
-      )}
-      <Header />
-      <div className="dashboard-body">
-        <div className="leftSlide">
-          <LeftSlide />
-        </div>
-
-        <div className="content">
-          <div className="dash-header">
-            <div>
-              <p className="dash-subtitle">Welcome back,</p>
-              <h1 className="home">
-                {UserSingleton.getInstance().getUsername()}
-              </h1>
-              <p className="dash-meta">
-                Manage your beats, check performance and upload new drops.
-              </p>
-            </div>
-
-            <div className="dash-right">
-              <button
-                className="uploadButton"
-                onClick={handleClick}
-                title="Upload a beat"
-              >
-                <i className="fa-solid fa-plus" />
-                <span>Upload beat</span>
-              </button>
-            </div>
-          </div>
-
-          <section className="dashboard-spotlight">
-            <article className="dashboard-hero-card">
-              <div className="dashboard-hero-copy">
-                <span className="dashboard-chip">Studio snapshot</span>
-                <h2>Your catalog is building momentum.</h2>
-                <p>
-                  Keep your strongest artwork visible, tighten metadata and push the next beat while attention is still warm.
-                </p>
-                <div className="dashboard-hero-actions">
-                  <button className="dashboard-ghost-button" onClick={() => navigate("/Beats")}>
-                    Open catalog
-                  </button>
-                  <button
-                    className="dashboard-ghost-button dashboard-ghost-button--accent"
-                    onClick={() => navigate("/Stats")}
-                  >
-                    Review stats
-                  </button>
-                </div>
-              </div>
-
-              <div className="dashboard-hero-panel">
-                <div className="dashboard-panel-head">
-                  <span>Live pulse</span>
-                  <strong>{currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</strong>
-                </div>
-                <div className="dashboard-panel-grid">
-                  <div>
-                    <span>Featured beat</span>
-                    <strong>{featuredBeat?.title || "No beats yet"}</strong>
-                  </div>
-                  <div>
-                    <span>Latest drop</span>
-                    <strong>{recentDrop?.title || "Ready when you are"}</strong>
-                  </div>
-                  <div>
-                    <span>Momentum score</span>
-                    <strong>{Math.round(featuredBeat?.trendingScore || 0)}</strong>
-                  </div>
-                  <div>
-                    <span>Catalog health</span>
-                    <strong>{posts.length > 0 ? "Active" : "Empty"}</strong>
-                  </div>
-                </div>
-              </div>
-            </article>
-
-            <div className="dashboard-mini-rail">
-              <article className="dashboard-mini-card">
-                <span>This week</span>
-                <strong>
-                  {
-                    recentPosts.filter(
-                      (post) =>
-                        Date.now() - new Date(post.publication_date).getTime() <
-                        1000 * 60 * 60 * 24 * 7,
-                    ).length
-                  }
-                </strong>
-                <p>Fresh uploads in the last 7 days.</p>
-              </article>
-              <article className="dashboard-mini-card">
-                <span>Best performer</span>
-                <strong>{featuredBeat?.title || "—"}</strong>
-                <p>Most competitive beat in your current ranking.</p>
-              </article>
-            </div>
-          </section>
-
-          <section className="dashboard-kpis">
-            <article className="dashboard-kpi-card">
-              <span>Published beats</span>
-              <strong>{dashboardTotals.beats}</strong>
-            </article>
-            <article className="dashboard-kpi-card">
-              <span>Total likes</span>
-              <strong>{dashboardTotals.likes}</strong>
-            </article>
-            <article className="dashboard-kpi-card">
-              <span>Total saves</span>
-              <strong>{dashboardTotals.saves}</strong>
-            </article>
-            <article className="dashboard-kpi-card">
-              <span>Total plays</span>
-              <strong>{dashboardTotals.plays}</strong>
-            </article>
-          </section>
-
-          <section className="dashboard-actions">
-            <button className="dashboard-action-card" onClick={() => navigate("/Beats")}>
-              <span className="dashboard-action-title">Manage beats</span>
-              <span className="dashboard-action-copy">Edit covers, tags, genre, BPM and descriptions from one place.</span>
-            </button>
-            <button className="dashboard-action-card" onClick={() => navigate("/Stats")}>
-              <span className="dashboard-action-title">Open stats</span>
-              <span className="dashboard-action-copy">Check which beats are getting saved, played and liked the most.</span>
-            </button>
-          </section>
-
-          {posts.length === 0 ? (
-            <div className="empty-state">
-              <h2>Your dashboard is empty</h2>
-              <p>Upload your first beat and start building your catalog.</p>
-              <button className="empty-cta" onClick={handleClick}>
-                <i className="fa-solid fa-plus" />
-                Upload your first beat
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Recent Uploads (vertical list) */}
-              <div className="section-container">
-                <h3>Recent uploads</h3>
-                <div className="list-container">
-                  {recentPosts.map((post) => {
-                    const isNew =
-                      Date.now() -
-                        new Date(post.publication_date).getTime() <
-                      1000 * 60 * 60 * 24 * 7;
-                    const trendingScore = post.trendingScore || 0;
-                    const isTrending = trendingScore >= trendingThreshold && trendingThreshold > 0;
-
-                    return (
-                      <motion.div
-                        key={post._id}
-                        className="list-row"
-                        onClick={() =>
-                          handleCardClick(post._id, `row-${post._id}`)
-                        }
-                        layoutId={`row-${post._id}`}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 12 }}
-                        transition={{ duration: 0.18 }}
-                      >
-                        <img
-                          className="thumb"
-                          src={makeImageUrl(post)}
-                          alt={post.title}
-                        />
-                        <div className="row-main">
-                          <div className="row-title">
-                            <span className="row-title-text">{post.title}</span>
-                            {isNew && <span className="badge new">New</span>}
-                            {isTrending && (
-                              <span className="badge trending">Trending</span>
-                            )}
-                          </div>
-
-                          <div className="row-meta">
-                            <span className="small-kpi">
-                              <i className="fa-solid fa-play" />{" "}
-                              {((post.plays) ?? (post as any)).plays || 0}
-                            </span>
-                            <span className="small-kpi">
-                              <i className="fa-regular fa-heart" /> {post.likes}
-                            </span>
-                            <span className="small-kpi">
-                              <i className="fa-regular fa-bookmark" /> {post.saves}
-                            </span>
-                            {/* placeholder para sparkline: puedes meter aquí un pequeño SVG o componente */}
-                            <span className="small-kpi">Score: {Math.round(trendingScore)}</span>
-                          </div>
-                          <div className="row-tags">
-                            {post.genre && <span>{post.genre}</span>}
-                            {post.bpm && <span>{post.bpm} BPM</span>}
-                            {(post.tags || []).slice(0, 2).map((tag) => (
-                              <span key={`${post._id}-${tag}`}>#{tag}</span>
-                            ))}
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Popular / Trending Uploads — mostramos top 6 por score */}
-              <div className="section-container">
-                <h3>Popular uploads</h3>
-                <div className="cards-container">
-                  {popularPosts.slice(0, 6).map((post, index) => (
-                    <motion.div
-                      className={`card ${
-                        selectedLayoutId === `popular-${index}` ? "hidden" : ""
-                      }`}
-                      key={post._id}
-                      layoutId={`popular-${index}`}
-                      onClick={() =>
-                        handleCardClick(post._id, `popular-${index}`)
-                      }
-                      initial={{ opacity: 0, y: 25 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 25 }}
-                      transition={{ duration: 0.25 }}
-                    >
-                      <img
-                        className="post-picture"
-                        src={makeImageUrl(post)}
-                        alt={post.title}
-                      />
-                      <div className="card-title-row">
-                        <h4 className="card-title">{post.title}</h4>
-                        <p className="card-date">
-                          {new Date(post.publication_date).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="card-meta">
-                        <span>
-                          <i className="fa-regular fa-heart" /> {post.likes}
-                        </span>
-                        <span>
-                          <i className="fa-regular fa-bookmark" /> {post.saves}
-                        </span>
-                        {post.genre && <span>{post.genre}</span>}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {selectedPost && selectedLayoutId && (
-          <CardDetails
-            post={selectedPost}
-            image={makeImageUrl(selectedPost)}
-            audio={makeAudioUrl(selectedPost)}
-            layoutId={selectedLayoutId}
-            onClose={handleCloseCardDetails}
-          />
-        )}
-      </AnimatePresence>
-    </div>
-  );
+  return <div className="page dashboard">
+    <header className="dashboard-welcome"><div><p className="page-eyebrow">Producer home</p><h1>Welcome back, {user.getUsername()}.</h1><p>Your catalog, your momentum, and new sounds from the community.</p></div><Link className="button" to="/upload"><Plus size={18} />Upload beat</Link></header>
+    <section className="dashboard-overview">
+      <div className="dashboard-feature"><div className="feature-icon"><Sparkles /></div><p className="page-eyebrow">Studio pulse</p><h2>{catalog.length ? 'Your sound is live.' : 'Your first drop starts here.'}</h2><p>{catalog.length ? `${catalog.length} beats are building your presence on BeatNow. Keep the catalog moving.` : 'Upload a beat with a strong cover and precise metadata to start your catalog.'}</p><Link to={catalog.length ? '/beats' : '/upload'}> {catalog.length ? 'Manage catalog' : 'Publish your first beat'} <ArrowRight size={17} /></Link></div>
+      <div className="metric-grid"><article><Headphones /><span>Total plays</span><strong>{formatCompactNumber(totals.plays)}</strong></article><article><Heart /><span>Total likes</span><strong>{formatCompactNumber(totals.likes)}</strong></article><article><Sparkles /><span>Total saves</span><strong>{formatCompactNumber(totals.saves)}</strong></article><article><span>Catalog</span><strong>{catalog.length}</strong><small>published beats</small></article></div>
+    </section>
+    <div className="section-header"><div><h2>Community feed</h2><p>Fresh beats selected from creators across BeatNow</p></div><Link to="/explore">Explore all <ArrowRight size={16} /></Link></div>
+    {loading ? <CardSkeleton count={8} /> : error && feed.length === 0 ? <ErrorState message={error} onRetry={load} /> : feed.length === 0 ? <EmptyState title="The feed is warming up" message="There are no community beats to show yet. Check again soon." /> : <><div className="card-grid">{feed.map((beat) => <BeatCard key={getBeatId(beat)} beat={beat} onChange={(next) => setFeed((items) => items.map((item) => getBeatId(item) === getBeatId(next) ? next : item))} />)}</div><div className="load-more"><button className="button button--secondary" type="button" onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Finding beats…' : 'More from the community'}</button></div></>}
+  </div>;
 }
-
-export default Dashboard;

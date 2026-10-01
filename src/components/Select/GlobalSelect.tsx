@@ -1,198 +1,24 @@
 import React from 'react';
-import Select from 'react-select';
-import makeAnimated from 'react-select/animated';
-import { motion, AnimatePresence } from 'framer-motion';
+import Select, { MultiValue, SingleValue } from 'react-select';
 
-interface Option {
-  value: string;
-  label: string;
-}
-
+export interface Option { value: string; label: string }
 interface GlobalSelectProps {
-  options: Option[];
-  isSearchable?: boolean;
-  isMulti?: boolean;
-  placeholder?: string;
-  onChange?: (selectedOption: any) => void;
-  value?: Option | Option[] | null | string;
-  components?: any;
+  options: Option[]; isSearchable?: boolean; isMulti?: boolean; placeholder?: string;
+  onChange?: (selected: Option | Option[] | null) => void; value?: Option | Option[] | null | string;
 }
 
-const animatedComponents = makeAnimated();
-
-const GlobalSelect: React.FC<GlobalSelectProps> = ({
-  options,
-  isSearchable,
-  isMulti,
-  placeholder,
-  onChange,
-  value,
-  components = animatedComponents,
-}) => {
-  const commonStyles = {
-    backgroundColor: '#494949',
-    color: 'white',
-    cursor: 'pointer',
-    borderRadius: '15px !important',
-  };
-
-  const normalizedValue = React.useMemo(() => {
-    if (value === undefined || value === null) {
-      return isMulti ? [] : null;
-    }
-
-    if (typeof value === 'string') {
-      return options.find((option) => option.value === value) ?? null;
-    }
-
-    return value;
-  }, [isMulti, options, value]);
-
-  return (
-    <div className="select-container">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-        <Select
-          className="select"
-          options={options}
-          isSearchable={isSearchable}
-          isMulti={isMulti}
-          placeholder={placeholder}
-          onChange={onChange}
-          value={normalizedValue}
-          components={{
-            Menu: ({ children, ...props }) => (
-              <motion.div initial={{ height: 2 }} animate={{ height: 'auto' }} transition={{ duration: 0.1 }}>
-                <components.Menu {...props}>{children}</components.Menu>
-              </motion.div>
-            ),
-            MenuList: ({ children, ...props }) => (
-              <components.MenuList {...props}>
-                <AnimatePresence>
-                  {React.Children.map(children, (child, i) => (
-                    <motion.div
-                      initial={{ opacity: 0, x: 100 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2, delay: i * 0.1 }}
-                    >
-                      {child}
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </components.MenuList>
-            ),
-          }}
-          styles={{
-            multiValueLabel(provided) {
-              return {
-                ...provided,
-                borderRadius: '20px',
-                backgroundColor: '#3C0F4B',
-                color: 'white',
-              };
-            },
-            singleValue(provided) {
-              return {
-                ...provided,
-                color: 'white',
-              };
-            },
-            multiValue(provided) {
-              return {
-                ...provided,
-                borderRadius: '10px',
-                backgroundColor: '#3C0F4B',
-                color: 'white',
-                ':hover': {
-                  color: 'white',
-                  borderRadius: '10px',
-                },
-              };
-            },
-            multiValueRemove(provided) {
-              return {
-                ...provided,
-                marginLeft: '1px',
-                color: 'white',
-                ':hover': {
-                  backgroundColor: '#3C0F4B',
-                  color: '#F04438',
-                  borderRadius: '10px',
-                },
-              };
-            },
-            option: (provided) => ({
-              ...provided,
-              borderRadius: '15px',
-              width: '98%',
-            }),
-            control: (provided) => ({
-              ...provided,
-              ...commonStyles,
-              boxShadow: 'white',
-              border: 'none',
-              borderRadius: '15px',
-              marginTop: '5%',
-              minHeight: '75px',
-              padding: '2%',
-            }),
-            menu: (provided) => ({
-              ...provided,
-              zIndex: '3000',
-              borderRadius: '15px',
-              maxHeight: '225px',
-              boxShadow: '0 5px 20px -2px #111',
-            }),
-            menuList: (base) => ({
-              ...base,
-              zIndex: '3000',
-              margin: '8px 10px 8px 8px',
-              borderRadius: '15px',
-              maxHeight: '205px',
-              '::-webkit-scrollbar': {
-                width: '10px',
-                height: '0px',
-              },
-              '::-webkit-scrollbar-track': {
-                background: '#333',
-                borderRadius: '20px',
-                margin: '5px',
-              },
-              '::-webkit-scrollbar-thumb': {
-                background: '#888',
-                borderRadius: '20px',
-              },
-              '::-webkit-scrollbar-thumb:hover': {
-                background: '#777',
-              },
-              '::-webkit-scrollbar-thumb:active': {
-                background: '#666',
-              },
-            }),
-            input: (provided) => ({
-              ...provided,
-              color: 'white !important',
-              background: '0px center !important ',
-              padding: '2% !important',
-            }),
-          }}
-          theme={(theme) => ({
-            ...theme,
-            colors: {
-              ...theme.colors,
-              text: 'black',
-              primary25: '#3C0F4B',
-              primary50: '#3C0F4B',
-              primary: '#222',
-              background: '#494949',
-              neutral0: '#494949',
-              border: 'none',
-            },
-          })}
-        />
-      </motion.div>
-    </div>
-  );
-};
-
-export default GlobalSelect;
+export default function GlobalSelect({ options, isSearchable = true, isMulti = false, placeholder, onChange, value }: GlobalSelectProps) {
+  const normalizedValue = typeof value === 'string' ? options.find((option) => option.value === value) ?? null : value ?? (isMulti ? [] : null);
+  return <Select<Option, boolean>
+    options={options} isSearchable={isSearchable} isMulti={isMulti} placeholder={placeholder} value={normalizedValue}
+    onChange={(selected: MultiValue<Option> | SingleValue<Option>) => onChange?.(Array.isArray(selected) ? [...selected] : selected as Option | null)}
+    classNamePrefix="bn-select"
+    styles={{
+      control: (base, state) => ({ ...base, minHeight: 48, background: 'var(--color-surface-1)', borderColor: state.isFocused ? 'var(--color-accent)' : 'var(--color-border-strong)', borderRadius: 12, boxShadow: state.isFocused ? '0 0 0 3px var(--color-accent-muted)' : 'none', ':hover': { borderColor: 'var(--color-border-strong)' } }),
+      menu: (base) => ({ ...base, zIndex: 3000, padding: 5, background: 'var(--color-surface-2)', border: '1px solid var(--color-border-strong)', borderRadius: 12, boxShadow: 'var(--shadow-lg)' }),
+      option: (base, state) => ({ ...base, borderRadius: 8, background: state.isSelected ? 'var(--color-accent)' : state.isFocused ? 'var(--color-surface-hover)' : 'transparent', color: 'var(--color-text)' }),
+      singleValue: (base) => ({ ...base, color: 'var(--color-text)' }), input: (base) => ({ ...base, color: 'var(--color-text)' }), placeholder: (base) => ({ ...base, color: 'var(--color-text-subtle)' }),
+      multiValue: (base) => ({ ...base, background: 'var(--color-accent-muted)', borderRadius: 999 }), multiValueLabel: (base) => ({ ...base, color: 'var(--color-text)' }), multiValueRemove: (base) => ({ ...base, borderRadius: 999, ':hover': { background: 'rgba(251,113,133,.2)', color: 'var(--color-danger)' } }),
+    }}
+  />;
+}

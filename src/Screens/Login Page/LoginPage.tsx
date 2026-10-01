@@ -4,26 +4,25 @@ import logo2 from '../../assets/Frame 2.png';
 import { Link, useNavigate } from 'react-router-dom';
 import CustomPopup from '../../components/Popup/CustomPopup';
 import UserSingleton from '../../Model/UserSingleton';
-import Header from '../../Layout/Header/Header';
 import LoadingPopup from '../../components/Loading/Loading';
-import VerifyPopup from '../../components/VerifyPopup/VerifyPopup';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import {
   Credentials,
   fetchUserProfile,
+  clearStoredSession,
   persistSession,
   requestLogin,
   UserData,
 } from '../../Model/api/auth';
+import { Eye, EyeOff } from 'lucide-react';
 
 function LoginPage() {
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState<Credentials>({ username: '', password: '' });
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
-  const [showVerifyPopup, setShowVerifyPopup] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleFieldChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -62,17 +61,11 @@ function LoginPage() {
 
       const session = await requestLogin(credentials);
       persistSession(session);
-      setToken(session.access_token);
-
       const profile = await fetchUserProfile(session.access_token);
       populateUser(profile);
-
-      if (!profile.is_active) {
-        setShowVerifyPopup(true);
-      } else {
-        navigateToDashboard(session.access_token);
-      }
+      navigateToDashboard(session.access_token);
     } catch (error) {
+      clearStoredSession();
       setMessage(error instanceof Error ? error.message : 'An unknown error occurred.');
       setShowPopup(true);
     } finally {
@@ -84,45 +77,42 @@ function LoginPage() {
     <div className="app login-page">
       {showPopup && <CustomPopup message={message} onClose={handleClose} />}
       {loading && <LoadingPopup message="" />}
-      {showVerifyPopup && token && <VerifyPopup token={token} />}
-
-      <Header />
-
       <AuthLayout
         className="login-page"
         illustration={<img className="auth-illustration" src={logo2} alt="BeatNow illustration" />}
       >
         <div className="auth-content">
           <div>
-            <h2 className="auth-title">Welcome back!</h2>
-            <p className="auth-subtitle">Please sign into your account</p>
+            <p className="page-eyebrow">Producer access</p>
+            <h1 className="auth-title">Welcome back.</h1>
+            <p className="auth-subtitle">Sign in to manage your sound and discover what is next.</p>
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
-            <input
+            <label className="auth-field"><span>Username</span><input
               className="auth-input"
               type="text"
               name="username"
               value={credentials.username}
               onChange={handleFieldChange}
-              placeholder="Username"
+              placeholder="Your username"
               autoComplete="username"
-            />
-            <input
+            /></label>
+            <label className="auth-field"><span>Password</span><div className="password-control"><input
               className="auth-input"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               name="password"
               value={credentials.password}
               onChange={handleFieldChange}
-              placeholder="Password"
+              placeholder="Your password"
               autoComplete="current-password"
-            />
+            /><button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
             <div className="login-actions">
               <Link className="forgot-link" to="/forgotPwd">
                 Forgot password?
               </Link>
             </div>
-            <button className="btn btn-primary" type="submit" disabled={loading}>
+            <button className="button" type="submit" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>

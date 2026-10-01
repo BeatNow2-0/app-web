@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Default beat cover">
+  <rect width="600" height="600" fill="#101217"/>
+  <circle cx="300" cy="300" r="172" fill="#171a23" stroke="#2e3441" stroke-width="2"/>
+  <circle cx="300" cy="300" r="64" fill="#7c3aed"/>
+  <circle cx="300" cy="300" r="18" fill="#f5f3ff"/>
+  <path d="M168 120v75M195 100v115M222 132v51M378 417v51M405 385v115M432 405v75" stroke="#a78bfa" stroke-width="12" stroke-linecap="round" opacity=".7"/>
+</svg>

@@ -12,6 +12,7 @@ export default function ProtectedRoute() {
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     const token = localStorage.getItem('token');
 
     if (!token) {
@@ -21,7 +22,7 @@ export default function ProtectedRoute() {
       };
     }
 
-    fetchUserProfile(token)
+    fetchUserProfile(token, controller.signal)
       .then((profile) => {
         if (!active) return;
         const user = UserSingleton.getInstance();
@@ -46,7 +47,14 @@ export default function ProtectedRoute() {
 
     return () => {
       active = false;
+      controller.abort();
     };
+  }, []);
+
+  useEffect(() => {
+    const expire = () => setSessionState('anonymous');
+    window.addEventListener('beatnow:session-expired', expire);
+    return () => window.removeEventListener('beatnow:session-expired', expire);
   }, []);
 
   if (sessionState === 'checking') {

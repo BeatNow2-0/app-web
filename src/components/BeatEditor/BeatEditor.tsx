@@ -11,7 +11,7 @@ interface BeatEditorProps {
   onSave: (payload: BeatUpdatePayload) => Promise<void>;
 }
 
-const maxBpm = 500;
+const maxBpm = 400;
 const normalizeList = (value: unknown): string[] => {
   if (Array.isArray(value)) {
     return value.map((item) => String(item).trim()).filter(Boolean);
@@ -75,7 +75,7 @@ export default function BeatEditor({ beat, onClose, onSave }: BeatEditorProps) {
 
   const previewUrl = useMemo(() => {
     if (!coverFile) {
-      return beat.cover_image_url;
+      return beat.cover_image_url ?? beat.caratula ?? '/cover-fallback.svg';
     }
     return URL.createObjectURL(coverFile);
   }, [beat.cover_image_url, coverFile]);
@@ -114,6 +114,10 @@ export default function BeatEditor({ beat, onClose, onSave }: BeatEditorProps) {
 
     if (!bpm) {
       setError('Please add the beat tempo.');
+      return;
+    }
+    if (coverFile && (!['image/jpeg', 'image/png', 'image/webp'].includes(coverFile.type) || coverFile.size > 10 * 1024 * 1024)) {
+      setError('Use a JPEG, PNG or WebP cover up to 10 MB.');
       return;
     }
 
@@ -186,7 +190,7 @@ export default function BeatEditor({ beat, onClose, onSave }: BeatEditorProps) {
               Replace cover
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                accept="image/png,image/jpeg,image/webp"
                 onChange={(event) => setCoverFile(event.target.files?.[0] ?? null)}
               />
             </label>

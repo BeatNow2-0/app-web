@@ -1,151 +1,90 @@
-import axios from 'axios';
-import { buildApiUrl } from '../../config/apiConfig';
+import type { AxiosProgressEvent } from 'axios';
+import type { Beat, InteractionResponse } from '../../types/api';
+import { getBeatId, normalizeBeat } from '../../utils/entities';
+import { apiClient, getApiErrorMessage } from './client';
 
-export interface BeatPost {
-  _id: string;
-  title: string;
-  publication_date: string;
-  likes: number;
-  saves: number;
-  views?: number;
-  plays?: number;
-  plays_7d?: number;
-  likes_7d?: number;
-  saves_7d?: number;
-  tags?: string[];
-  genre?: string;
-  moods?: string[];
-  instruments?: string[];
-  bpm?: number;
-  description?: string;
-  user_id: string;
-  audio_format?: string;
-  cover_format?: string;
-  cover_image_url?: string;
-  audio_url?: string;
-  price?: number;
-  sales_count?: number;
-}
-
+export type BeatPost = Beat;
 export interface BeatUpdatePayload {
-  title: string;
-  description: string;
-  genre: string;
-  bpm: number | '';
-  tags: string[];
-  moods: string[];
-  instruments: string[];
-  coverFile?: File | null;
+  title: string; description: string; genre: string; bpm: number | '';
+  tags: string[]; moods: string[]; instruments: string[]; coverFile?: File | null;
 }
+export interface BeatUploadPayload extends BeatUpdatePayload { bpm: number; coverFile: File; audioFile: File }
 
-const getApiErrorMessage = (error: unknown, fallback: string) => {
-  if (axios.isAxiosError(error)) {
-    const detail = error.response?.data?.detail;
-    if (typeof detail === 'string') {
-      return detail;
-    }
-    if (Array.isArray(detail) && detail.length > 0) {
-      return detail.map((item) => item.msg || 'Validation error').join(', ');
-    }
-  }
-  return fallback;
-};
-
-const normalizeStringArray = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
-
-  if (typeof value !== 'string') {
-    return [];
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (Array.isArray(parsed)) {
-      return parsed.map((item) => String(item).trim()).filter(Boolean);
-    }
-  } catch {
-    return trimmed
-      .split(',')
-      .map((item) => item.replace(/[[\]"]/g, '').trim())
-      .filter(Boolean);
-  }
-
-  return [];
-};
-
-const normalizeBeatPost = (beat: any): BeatPost => ({
-  ...beat,
-  tags: normalizeStringArray(beat?.tags),
-  moods: normalizeStringArray(beat?.moods),
-  instruments: normalizeStringArray(beat?.instruments),
-  genre: typeof beat?.genre === 'string' ? beat.genre.replace(/[[\]"]/g, '').trim() : beat?.genre,
-  bpm:
-    typeof beat?.bpm === 'string'
-      ? Number.parseInt(beat.bpm.replace(/[^\d]/g, ''), 10) || undefined
-      : beat?.bpm,
-});
-
-export async function fetchProducerPosts(token: string, username: string): Promise<BeatPost[]> {
-  try {
-    const response = await axios.get<BeatPost[]>(buildApiUrl(`/v1/api/users/posts/${username}`), {
-      headers: {
-        accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return (response.data || []).map(normalizeBeatPost);
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to fetch beats.'));
-  }
-}
-
-export async function updateBeat(token: string, postId: string, payload: BeatUpdatePayload): Promise<BeatPost> {
-  const formData = new FormData();
+function appendMetadata(formData: FormData, payload: BeatUpdatePayload): void {
   formData.append('title', payload.title);
   formData.append('description', payload.description);
   formData.append('genre', payload.genre);
-  if (payload.bpm !== '') {
-    formData.append('bpm', String(payload.bpm));
-  }
+  if (payload.bpm !== '') formData.append('bpm', String(payload.bpm));
   formData.append('tags', JSON.stringify(payload.tags));
   formData.append('moods', JSON.stringify(payload.moods));
   formData.append('instruments', JSON.stringify(payload.instruments));
-
-  if (payload.coverFile) {
-    formData.append('cover_file', payload.coverFile);
-  }
-
-  try {
-    const response = await axios.put<BeatPost>(buildApiUrl(`/v1/api/posts/update/${postId}`), formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return normalizeBeatPost(response.data);
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to update beat.'));
-  }
 }
 
-export async function deleteBeat(token: string, postId: string): Promise<void> {
+export async function fetchProducerPosts(_token: string, username: string, limit = 50, skip = 0, signal?: AbortSignal): Promise<BeatPost[]> {
   try {
-    await axios.delete(buildApiUrl(`/v1/api/posts/delete/${encodeURIComponent(postId)}`), {
-      headers: {
-        accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      timeout: 20_000,
+    const { data } = await apiClient.get<Beat[]>(`/v1/api/users/posts/${encodeURIComponent(username)}`, {
+      params: { limit: Math.min(limit, 100), skip }, signal,
     });
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to delete beat. Please try again.'));
-  }
+    return (data || []).map(normalizeBeat);
+  } catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to load beats.')) }
+}
+
+export async function fetchFeed(limit = 8, excludeIds: string[] = [], signal?: AbortSignal): Promise<BeatPost[]> {
+  try {
+    const { data } = await apiClient.get<Beat[]>('/v1/api/posts/feed', {
+      params: { limit: Math.min(limit, 20), exclude_ids: excludeIds.join(',') || undefined }, signal,
+    });
+    return (data || []).map(normalizeBeat);
+  } catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to load the feed.')) }
+}
+
+export async function updateBeat(_token: string, postId: string, payload: BeatUpdatePayload): Promise<BeatPost> {
+  const formData = new FormData(); appendMetadata(formData, payload);
+  if (payload.coverFile) formData.append('cover_file', payload.coverFile, payload.coverFile.name);
+  try {
+    const { data } = await apiClient.put<Beat>(`/v1/api/posts/update/${encodeURIComponent(postId)}`, formData);
+    return normalizeBeat(data);
+  } catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to update this beat.')) }
+}
+
+export async function uploadBeat(payload: BeatUploadPayload, options: { signal?: AbortSignal; onProgress?: (value: number) => void } = {}): Promise<BeatPost> {
+  const formData = new FormData(); appendMetadata(formData, payload);
+  formData.append('cover_file', payload.coverFile, payload.coverFile.name);
+  formData.append('audio_file', payload.audioFile, payload.audioFile.name);
+  try {
+    const { data } = await apiClient.post<Beat>('/v1/api/posts/upload', formData, {
+      signal: options.signal, timeout: 10 * 60 * 1000,
+      onUploadProgress: (event: AxiosProgressEvent) => {
+        if (event.total) options.onProgress?.(Math.round((event.loaded / event.total) * 100));
+      },
+    });
+    return normalizeBeat(data);
+  } catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to publish this beat.')) }
+}
+
+export async function deleteBeat(_token: string, postId: string): Promise<void> {
+  try { await apiClient.delete(`/v1/api/posts/${encodeURIComponent(postId)}`) }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to delete this beat.')) }
+}
+
+export async function setBeatLike(beat: Beat, liked: boolean): Promise<InteractionResponse> {
+  const id = encodeURIComponent(getBeatId(beat));
+  try {
+    return liked
+      ? (await apiClient.post<InteractionResponse>(`/v1/api/interactions/like/${id}`)).data
+      : (await apiClient.delete<InteractionResponse>(`/v1/api/interactions/unlike/${id}`)).data;
+  } catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to update the like.')) }
+}
+
+export async function setBeatSaved(beat: Beat, saved: boolean): Promise<InteractionResponse> {
+  const id = encodeURIComponent(getBeatId(beat));
+  try {
+    return saved
+      ? (await apiClient.post<InteractionResponse>(`/v1/api/interactions/save/${id}`)).data
+      : (await apiClient.delete<InteractionResponse>(`/v1/api/interactions/unsave/${id}`)).data;
+  } catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to update the saved state.')) }
+}
+
+export async function recordBeatView(beat: Beat): Promise<InteractionResponse> {
+  return (await apiClient.post<InteractionResponse>(`/v1/api/interactions/view/${encodeURIComponent(getBeatId(beat))}`)).data;
 }

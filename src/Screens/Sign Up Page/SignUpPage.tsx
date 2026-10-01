@@ -1,25 +1,22 @@
 import React, { ChangeEvent, FocusEvent, FormEvent, useState } from 'react';
 import './SignUpPage.css';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logo2 from '../../assets/Frame 2.png';
 import CustomPopup from '../../components/Popup/CustomPopup';
-import Header from '../../Layout/Header/Header';
-import VerifyPopup from '../../components/VerifyPopup/VerifyPopup';
 import LoadingPopup from '../../components/Loading/Loading';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import {
   checkAvailability,
-  persistSession,
   registerUser,
-  requestLogin,
-  sendConfirmationEmail,
 } from '../../Model/api/auth';
+import { Eye, EyeOff } from 'lucide-react';
 
-const passwordRequirements = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,20}$/;
+const passwordRequirements = /^.{8,128}$/;
 
 type FieldName = 'full_name' | 'username' | 'email' | 'password' | 'confirmPassword';
 
 function SignUpPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     full_name: '',
     username: '',
@@ -27,13 +24,13 @@ function SignUpPage() {
     password: '',
     confirmPassword: '',
   });
-  const [token, setToken] = useState('');
-  const [showVerify, setShowVerify] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [message, setMessage] = useState('');
   const [emailAvailable, setEmailAvailable] = useState(true);
   const [usernameAvailable, setUsernameAvailable] = useState(true);
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   const handleFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -48,6 +45,7 @@ function SignUpPage() {
 
   const handleClose = () => {
     setShowPopup(false);
+    if (registered) navigate('/login');
   };
 
   const handleAvailabilityBlur = async (event: FocusEvent<HTMLInputElement>) => {
@@ -74,14 +72,14 @@ function SignUpPage() {
     if (!form.full_name || form.full_name.length > 40) {
       return 'Please enter a full name (max 40 characters).';
     }
-    if (!form.username || form.username.length > 16 || /\s/.test(form.username)) {
-      return 'Username must be less than 16 characters and contain no spaces.';
+    if (!/^[a-zA-Z0-9_.-]{3,32}$/.test(form.username)) {
+      return 'Username must be 3-32 characters using letters, numbers, dots, dashes or underscores.';
     }
-    if (!form.email || form.email.length > 40 || !/\S+@\S+\.\S+/.test(form.email)) {
-      return 'Please enter a valid email (max 40 characters).';
+    if (!form.email || form.email.length > 254 || !/\S+@\S+\.\S+/.test(form.email)) {
+      return 'Please enter a valid email address.';
     }
     if (!passwordRequirements.test(form.password)) {
-      return 'Password must be 8-20 characters and include uppercase, lowercase, number, and special character.';
+      return 'Password must be 8-128 characters.';
     }
     if (form.confirmPassword !== form.password) {
       return 'Passwords do not match.';
@@ -114,26 +112,12 @@ function SignUpPage() {
         username: form.username,
         email: form.email,
         password: form.password,
-        is_active: false,
       });
 
-      const session = await requestLogin({
-        username: form.username,
-        password: form.password,
-      });
-      persistSession(session);
-      setToken(session.access_token);
-
-      try {
-        await sendConfirmationEmail(session.access_token);
-      } catch (emailError) {
-        console.error('Error sending confirmation email:', emailError);
-      }
-
-      setShowVerify(true);
-      setShowPopup(false);
+      setRegistered(true);
+      setMessage('Account created. Check your email for activation instructions, then sign in.');
+      setShowPopup(true);
     } catch (error) {
-      console.error('Error during registration:', error);
       setMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.');
       setShowPopup(true);
     } finally {
@@ -145,10 +129,6 @@ function SignUpPage() {
     <div className="app sign-up-page">
       {showPopup && <CustomPopup message={message} onClose={handleClose} />} 
       {showLoading && <LoadingPopup message="" />} 
-      {showVerify && token && <VerifyPopup token={token} />} 
-
-      <Header />
-
       <AuthLayout
         className="sign-up-page"
         reverse
@@ -156,66 +136,72 @@ function SignUpPage() {
       >
         <div className="auth-content">
           <div>
-            <h2 className="auth-title">Create New Account</h2>
-            <p className="auth-subtitle">Please fill in the form to continue</p>
+            <p className="page-eyebrow">Join BeatNow</p>
+            <h1 className="auth-title">Build your producer profile.</h1>
+            <p className="auth-subtitle">Publish beats, grow your catalog and connect with creators.</p>
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
-            <input
+            <label className="auth-field"><span>Full name</span><input
               className="auth-input"
               type="text"
               name="full_name"
               value={form.full_name}
               onChange={handleFieldChange}
-              placeholder="Full Name"
+              placeholder="Your name"
+              autoComplete="name"
               maxLength={40}
-            />
+            /></label>
 
             <div className="field-grid">
-              <input
+              <label className="auth-field"><span>Username</span><input
                 className="auth-input"
                 type="text"
                 name="username"
                 value={form.username}
                 onChange={handleFieldChange}
                 onBlur={handleAvailabilityBlur}
-                placeholder="Username"
-                maxLength={16}
-              />
-              <input
+                placeholder="producer_name"
+                autoComplete="username"
+                maxLength={32}
+              /></label>
+              <label className="auth-field"><span>Email</span><input
                 className="auth-input"
                 type="email"
                 name="email"
                 value={form.email}
                 onChange={handleFieldChange}
                 onBlur={handleAvailabilityBlur}
-                placeholder="Email"
-                maxLength={40}
-              />
+                placeholder="you@example.com"
+                autoComplete="email"
+                maxLength={254}
+              /></label>
             </div>
 
             <div className="field-grid">
-              <input
+              <label className="auth-field"><span>Password</span><div className="password-control"><input
                 className="auth-input"
-                type="password"
+                type={showPasswords ? 'text' : 'password'}
                 name="password"
                 value={form.password}
                 onChange={handleFieldChange}
-                placeholder="Password"
-                maxLength={20}
-              />
-              <input
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+                maxLength={128}
+              /><button type="button" onClick={() => setShowPasswords((value) => !value)} aria-label={showPasswords ? 'Hide passwords' : 'Show passwords'}>{showPasswords ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
+              <label className="auth-field"><span>Confirm password</span><input
                 className="auth-input"
-                type="password"
+                type={showPasswords ? 'text' : 'password'}
                 name="confirmPassword"
                 value={form.confirmPassword}
                 onChange={handleFieldChange}
-                placeholder="Confirm Password"
-                maxLength={20}
-              />
+                placeholder="Repeat password"
+                autoComplete="new-password"
+                maxLength={128}
+              /></label>
             </div>
 
-            <button className="btn btn-primary" type="submit" disabled={showLoading}>
+            <button className="button" type="submit" disabled={showLoading}>
               {showLoading ? 'Creating account...' : 'Sign up'}
             </button>
           </form>

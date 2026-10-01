@@ -1,275 +1,79 @@
-// src/components/Header/Header.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDown, LogOut, Settings, UserRound } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../../assets/Logo.png';
 import UserSingleton from '../../Model/UserSingleton';
+import { deleteAccount, fetchUserProfile, requestLogout, resetProfilePhoto, updateUserProfile, uploadProfilePhoto } from '../../Model/api/auth';
 import Profile, { User as ProfileUser } from '../../components/Profile/Profile';
 import CustomPopup from '../../components/Popup/CustomPopup';
 import './Header.css';
-import {
-  clearStoredSession,
-  fetchUserProfile,
-  resetProfilePhoto,
-  updateUserProfile,
-  uploadProfilePhoto,
-} from '../../Model/api/auth';
-import { buildApiUrl } from '../../config/apiConfig';
 
-function Header() {
-  const [message, setMessage] = useState('');
-  const [showPopup, setShowPopup] = useState(false);
-  const user = UserSingleton.getInstance();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-
-
-  // nuevo: estado para abrir modal de perfil y datos
+export default function Header() {
+  const navigate = useNavigate();
+  const singleton = UserSingleton.getInstance();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(false);
-
-  const handleClickOutside = (event: MouseEvent) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-      closeDropdown();
-    }
-  };
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+    const close = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setOpen(false);
     };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const toggleDropdown = () => {
-    if (dropdownOpen) {
-      closeDropdown();
-    } else {
-      setDropdownOpen(true);
-    }
-  };
-
-  const closeDropdown = () => {
-    setClosing(true);
-    setTimeout(() => {
-      setDropdownOpen(false);
-      setClosing(false);
-    }, 300);
-  };
-
-  const handleLogout = () => {
-    closeDropdown();
-    clearStoredSession();
-    UserSingleton.getInstance().clear();
-    window.location.href = '/login';
-  };
-
-  const closePopup = () => {
-    setShowPopup(false);
-  };
-
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
-
-  // --- API endpoints (ajusta si cambian)
-  // Fetch user data when opening profile
   const openProfile = async () => {
-    closeDropdown();
-    setProfileOpen(true);
-    setLoadingProfile(true);
+    setOpen(false);
     try {
-      const t = localStorage.getItem('token');
-      if (!t) throw new Error('No token available');
-
-      const data = await fetchUserProfile(t);
-      const mapped: ProfileUser = {
-        id: data.id,
-        username: data.username,
-        email: data.email,
-        fullName: data.full_name || '',
-        bio: data.bio ?? '',
-        photoUrl: data.profile_image_url ?? undefined,
-        password: '',
-      };
-      setProfileUser(mapped);
-    } catch (err) {
-      console.error('openProfile error', err);
-      setMessage('Error de red al obtener perfil.');
-      setShowPopup(true);
-      setProfileOpen(false);
-    } finally {
-      setLoadingProfile(false);
-    }
+      const data = await fetchUserProfile();
+      setProfileUser({ id: data.id, username: data.username, email: data.email, fullName: data.full_name, bio: data.bio ?? '', photoUrl: data.profile_image_url ?? undefined, password: '' });
+      setProfileOpen(true);
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to load your profile.') }
   };
 
-  // onSave: recibe el objeto actualizado (según Profile.tsx)
-const handleSaveProfile = async (updated: ProfileUser & { photoFile?: File | null; password?: string }) => {
-  const t = localStorage.getItem('token');
-  if (!t) {
-    throw new Error('Session expired. Please sign in again.');
-  }
+  const saveProfile = async (updated: ProfileUser & { photoFile?: File | null }) => {
+    const token = localStorage.getItem('token') || '';
+    const previousPhoto = profileUser?.photoUrl;
+    let refreshed = await updateUserProfile(token, { username: updated.username.trim(), full_name: updated.fullName.trim(), bio: updated.bio?.trim() || null });
+    if (updated.photoFile) refreshed = await uploadProfilePhoto(token, updated.photoFile);
+    else if (previousPhoto && !updated.photoUrl) refreshed = await resetProfilePhoto(token);
+    singleton.setId(refreshed.id); singleton.setUsername(refreshed.username); singleton.setFullName(refreshed.full_name); singleton.setEmail(refreshed.email); singleton.setPhotoProfile(refreshed.profile_image_url || '/avatar-fallback.svg');
+    setProfileUser({ id: refreshed.id, username: refreshed.username, email: refreshed.email, fullName: refreshed.full_name, bio: refreshed.bio ?? '', photoUrl: refreshed.profile_image_url ?? undefined, password: '' });
+    setMessage('Profile updated.');
+  };
 
-  const currentProfile = profileUser;
-  const normalizedBio = updated.bio?.trim() || null;
+  const logout = async () => {
+    setOpen(false);
+    try { await requestLogout() } finally { singleton.clear(); navigate('/login', { replace: true }) }
+  };
 
-  await updateUserProfile(t, {
-    username: updated.username.trim(),
-    full_name: updated.fullName.trim(),
-    bio: normalizedBio,
-  });
+  const removeAccount = async () => {
+    await deleteAccount();
+    singleton.clear();
+    await requestLogout().catch(() => undefined);
+    navigate('/register', { replace: true });
+  };
 
-  let refreshedProfile = await fetchUserProfile(t);
-
-  if (updated.photoFile) {
-    refreshedProfile = await uploadProfilePhoto(t, updated.photoFile);
-  } else if (currentProfile?.photoUrl && !updated.photoUrl) {
-    refreshedProfile = await resetProfilePhoto(t);
-  }
-
-  user.setId(refreshedProfile.id);
-  user.setUsername(refreshedProfile.username);
-  user.setFullName(refreshedProfile.full_name);
-  user.setEmail(refreshedProfile.email);
-  user.setIsActive(refreshedProfile.is_active);
-  user.setPhotoProfile((refreshedProfile.profile_image_url || user.getPhotoProfile()) + `?v=${Date.now()}`);
-
-  setProfileUser({
-    id: refreshedProfile.id,
-    username: refreshedProfile.username,
-    email: refreshedProfile.email,
-    fullName: refreshedProfile.full_name || '',
-    bio: refreshedProfile.bio || '',
-    photoUrl: refreshedProfile.profile_image_url || undefined,
-    password: '',
-  });
-  setMessage('Perfil actualizado correctamente.');
-  setShowPopup(true);
-};
-
-
-
-  // Change password handler
- const handleChangePassword = async (_payload: { currentPassword: string; newPassword: string }) => {
-  setMessage('La API pública actual no expone un endpoint autenticado para cambiar la contraseña desde perfil. Usa el flujo de recuperación de contraseña.');
-  setShowPopup(true);
-  throw new Error('Authenticated password change is not supported by the current API schema.');
-};
-
-
-  // Delete account handler
-  const handleDeleteAccount = async () => {
-  if (!confirm('¿Estás seguro que quieres eliminar tu cuenta? Esta acción no se puede deshacer.')) return;
-
-  const t = localStorage.getItem('token');
-  if (!t) {
-    setMessage('Token no disponible. Vuelve a iniciar sesión.');
-    setShowPopup(true);
-    return;
-  }
-
-  try {
-    const res = await fetch(buildApiUrl('/v1/api/users/delete'), {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${t}`,
-        Accept: 'application/json',
-      },
-    });
-
-    const text = await res.text().catch(() => '');
-    if (!res.ok) {
-      console.error('delete account failed', res.status, text);
-      setMessage('No se pudo eliminar la cuenta: ' + (text || res.status));
-      setShowPopup(true);
-      throw new Error('Delete failed');
-    }
-
-    // success: logout and redirect home
-    UserSingleton.getInstance().clear();
-    clearStoredSession();
-    window.location.href = '/';
-  } catch (err) {
-    console.error('handleDeleteAccount error', err);
-    setMessage('Error al eliminar la cuenta. Revisa la consola.');
-    setShowPopup(true);
-    throw err;
-  }
-};
-
-
-  return (
-    <>
-      <header className="header">
-        <div className="logo">
-          {token === null ? (
-            <Link to="/">
-              <img className="logoPng" src={logo} alt="Logo" />
-            </Link>
-          ) : (
-            <Link to="/dashboard">
-              <img className="logoPng" src={logo} alt="Logo" />
-            </Link>
-          )}
-        </div>
-        {token === null ? (
-          <div />
-        ) : (
-          <div className="nav-links">
-            <div className="profile" onClick={toggleDropdown} ref={dropdownRef}>
-              <img src={user.photoProfile} alt="Profile" />
-              {dropdownOpen && (
-                <div className={`dropdown-content ${closing ? 'close' : 'open'}`}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openProfile();
-                    }}
-                  >
-                    Perfil
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMessage('This feature is not available yet.');
-                      setShowPopup(true);
-                      closeDropdown();
-                    }}
-                  >
-                    Ajustes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleLogout();
-                    }}
-                  >
-                    Cerrar sesión
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </header>
-
-      {showPopup && <CustomPopup message={message} onClose={closePopup} />}
-
-      {/* Profile modal */}
-      {profileOpen && profileUser && (
-        <Profile
-          user={profileUser}
-          onClose={() => setProfileOpen(false)}
-          onSave={handleSaveProfile}
-          onChangePassword={handleChangePassword}
-          onDelete={handleDeleteAccount}
-          title={loadingProfile ? 'Cargando...' : 'Editar perfil'}
-        />
-      )}
-    </>
-  );
+  return <>
+    <header className="header">
+      <Link to="/dashboard" className="brand" aria-label="BeatNow home"><img src={logo} alt="" /><span>BeatNow</span></Link>
+      <div className="header-tagline">Create. Connect. Be heard.</div>
+      <div className="header-profile" ref={dropdownRef}>
+        <button type="button" className="profile-trigger" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu">
+          <img src={singleton.getPhotoProfile() || '/avatar-fallback.svg'} onError={(event) => { event.currentTarget.src = '/avatar-fallback.svg' }} alt="" />
+          <span>{singleton.getUsername()}</span><ChevronDown size={16} />
+        </button>
+        {open && <div className="profile-menu" role="menu">
+          <button type="button" onClick={openProfile}><UserRound size={17} />Edit profile</button>
+          <button type="button" onClick={() => { setMessage('Account settings are managed from your profile.'); setOpen(false) }}><Settings size={17} />Settings</button>
+          <button type="button" className="profile-menu-danger" onClick={logout}><LogOut size={17} />Sign out</button>
+        </div>}
+      </div>
+    </header>
+    {profileOpen && profileUser && <Profile user={profileUser} onClose={() => setProfileOpen(false)} onSave={saveProfile} onChangePassword={async () => { throw new Error('Use the password recovery flow. The current backend does not expose authenticated password changes.') }} onDelete={removeAccount} title="Edit profile" />}
+    {message && <CustomPopup message={message} onClose={() => setMessage('')} />}
+  </>;
 }
-
-export default Header;
