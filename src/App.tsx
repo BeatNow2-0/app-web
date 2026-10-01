@@ -11,6 +11,7 @@ import Upload from "./Screens/UploadScreens/Upload";
 import Dashboard from "./Screens/DashboardPage/Dashboard";
 import BeatsPage from "./Screens/BeatsPage/BeatsPage";
 import ForgotPwdPage from "./Screens/ForgotPwd Page/ForgotPwdPage";
+import EmailConfirmationPage from "./Screens/Email Confirmation Page/EmailConfirmationPage";
 import Stats from './Screens/StatsPage/Stats';
 import NotFound from './Screens/NotFoundPage/NotFound';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
@@ -27,6 +28,7 @@ function App() {
                 <Route path="/" element={<Navigate to={localStorage.getItem('token') ? '/dashboard' : '/login'} replace />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<SignUpPage />} />
+                <Route path="/confirm-email" element={<EmailConfirmationPage />} />
                 <Route path={"/ForgotPwd"} element={<ForgotPwdPage />} />
                 <Route path="/reset-password" element={<ForgotPwdPage />} />
                 <Route path="/legal/:document" element={<LegalPage />} />

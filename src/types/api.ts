@@ -1,7 +1,15 @@
 export interface ApiErrorPayload {
-  detail?: string | Array<{ msg?: string; loc?: Array<string | number> }>;
+  detail?: string | Array<{ msg?: string; loc?: Array<string | number> }> | {
+    code?: string;
+    message?: string;
+    verification_token?: string;
+    retry_after?: number;
+  };
+  code?: string;
   message?: string;
   request_id?: string;
+  verification_token?: string;
+  retry_after?: number;
 }
 
 export interface AuthResponse {

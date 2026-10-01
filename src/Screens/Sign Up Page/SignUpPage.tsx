@@ -7,7 +7,7 @@ import LoadingPopup from '../../components/Loading/Loading';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import {
   checkAvailability,
-  registerUser,
+  registerUserForConfirmation,
 } from '../../Model/api/auth';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -30,7 +30,6 @@ function SignUpPage() {
   const [emailAvailable, setEmailAvailable] = useState(true);
   const [usernameAvailable, setUsernameAvailable] = useState(true);
   const [showPasswords, setShowPasswords] = useState(false);
-  const [registered, setRegistered] = useState(false);
 
   const handleFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -45,7 +44,6 @@ function SignUpPage() {
 
   const handleClose = () => {
     setShowPopup(false);
-    if (registered) navigate('/login');
   };
 
   const handleAvailabilityBlur = async (event: FocusEvent<HTMLInputElement>) => {
@@ -107,16 +105,24 @@ function SignUpPage() {
     setShowLoading(true);
 
     try {
-      await registerUser({
+      const payload = {
         full_name: form.full_name,
         username: form.username,
         email: form.email,
         password: form.password,
+      };
+      const registration = await registerUserForConfirmation(payload);
+      navigate('/confirm-email', {
+        replace: true,
+        state: {
+          verificationToken: registration.verification_token,
+          email: form.email,
+          credentials: {
+            username: form.username,
+            password: form.password,
+          },
+        },
       });
-
-      setRegistered(true);
-      setMessage('Account created. Check your email for activation instructions, then sign in.');
-      setShowPopup(true);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.');
       setShowPopup(true);

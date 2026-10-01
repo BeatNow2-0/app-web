@@ -7,6 +7,7 @@ import UserSingleton from '../../Model/UserSingleton';
 import LoadingPopup from '../../components/Loading/Loading';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import {
+  AccountNotVerifiedError,
   Credentials,
   fetchUserProfile,
   clearStoredSession,
@@ -34,7 +35,7 @@ function LoginPage() {
   };
 
   const navigateToDashboard = (accessToken: string) => {
-    navigate('/Dashboard', { state: { token: accessToken } });
+    navigate('/dashboard', { state: { token: accessToken } });
   };
 
   const populateUser = (userData: UserData) => {
@@ -66,6 +67,16 @@ function LoginPage() {
       navigateToDashboard(session.access_token);
     } catch (error) {
       clearStoredSession();
+      if (error instanceof AccountNotVerifiedError) {
+        navigate('/confirm-email', {
+          replace: true,
+          state: {
+            verificationToken: error.verificationToken,
+            credentials,
+          },
+        });
+        return;
+      }
       setMessage(error instanceof Error ? error.message : 'An unknown error occurred.');
       setShowPopup(true);
     } finally {

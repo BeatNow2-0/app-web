@@ -1,0 +1,23 @@
+.email-confirmation-page .verification-code {
+  text-align: center;
+  letter-spacing: 0.28em;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.email-confirmation-page .confirmation-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.email-confirmation-page .resend-button {
+  width: 100%;
+}
+
+.email-confirmation-page .confirmation-hint {
+  margin: 0;
+  color: var(--color-text-subtle);
+  font-size: 0.84rem;
+  text-align: center;
+}
