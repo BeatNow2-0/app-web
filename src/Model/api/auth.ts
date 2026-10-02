@@ -128,7 +128,10 @@ export async function uploadProfilePhoto(_token: string, file: File): Promise<Us
   const formData = new FormData();
   formData.append('file', file);
   try {
-    await apiClient.put('/v1/api/users/change_photo_profile', formData);
+    await apiClient.put('/v1/api/users/change_photo_profile', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 10 * 60 * 1000,
+    });
     return fetchUserProfile();
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Unable to update your profile photo.'));
