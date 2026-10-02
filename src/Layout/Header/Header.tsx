@@ -36,10 +36,21 @@ export default function Header() {
 
   const saveProfile = async (updated: ProfileUser & { photoFile?: File | null }) => {
     const token = localStorage.getItem('token') || '';
-    const previousPhoto = profileUser?.photoUrl;
-    let refreshed = await updateUserProfile(token, { username: updated.username.trim(), full_name: updated.fullName.trim(), bio: updated.bio?.trim() || null });
-    if (updated.photoFile) refreshed = await uploadProfilePhoto(token, updated.photoFile);
-    else if (previousPhoto && !updated.photoUrl) refreshed = await resetProfilePhoto(token);
+    const previous = profileUser;
+    const profileChanged = !previous
+      || updated.username.trim() !== previous.username
+      || updated.fullName.trim() !== previous.fullName
+      || (updated.bio?.trim() || '') !== (previous.bio?.trim() || '');
+    const updateProfile = () => updateUserProfile(token, { username: updated.username.trim(), full_name: updated.fullName.trim(), bio: updated.bio?.trim() || null });
+    let refreshed: Awaited<ReturnType<typeof fetchUserProfile>>;
+    if (updated.photoFile) {
+      if (profileChanged) await updateProfile();
+      refreshed = await uploadProfilePhoto(token, updated.photoFile);
+    } else if (previous?.photoUrl && !updated.photoUrl) {
+      if (profileChanged) await updateProfile();
+      refreshed = await resetProfilePhoto(token);
+    } else if (profileChanged) refreshed = await updateProfile();
+    else refreshed = await fetchUserProfile(token);
     singleton.setId(refreshed.id); singleton.setUsername(refreshed.username); singleton.setFullName(refreshed.full_name); singleton.setEmail(refreshed.email); singleton.setPhotoProfile(refreshed.profile_image_url || '/avatar-fallback.svg');
     setProfileUser({ id: refreshed.id, username: refreshed.username, email: refreshed.email, fullName: refreshed.full_name, bio: refreshed.bio ?? '', photoUrl: refreshed.profile_image_url ?? undefined, password: '' });
     setMessage('Profile updated.');
