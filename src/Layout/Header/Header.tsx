@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, LogOut, Settings, UserRound } from 'lucide-react';
+import { ChevronDown, LogOut, UserRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../../assets/Logo.png';
 import UserSingleton from '../../Model/UserSingleton';
@@ -68,7 +68,6 @@ export default function Header() {
         </button>
         {open && <div className="profile-menu" role="menu">
           <button type="button" onClick={openProfile}><UserRound size={17} />Edit profile</button>
-          <button type="button" onClick={() => { setMessage('Account settings are managed from your profile.'); setOpen(false) }}><Settings size={17} />Settings</button>
           <button type="button" className="profile-menu-danger" onClick={logout}><LogOut size={17} />Sign out</button>
         </div>}
       </div>

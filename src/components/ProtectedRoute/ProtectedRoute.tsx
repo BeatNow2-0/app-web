@@ -31,7 +31,7 @@ export default function ProtectedRoute() {
         user.setEmail(profile.email);
         user.setId(profile.id);
         user.setIsActive(profile.is_active);
-        if (profile.profile_image_url) user.setPhotoProfile(profile.profile_image_url);
+        user.setPhotoProfile(profile.profile_image_url || '/avatar-fallback.svg');
         setSessionState('authenticated');
       })
       .catch((error: Error & { status?: number }) => {
