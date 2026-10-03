@@ -1,4 +1,5 @@
 import type { AxiosProgressEvent } from 'axios';
+import axios from 'axios';
 import type { Beat, InteractionResponse } from '../../types/api';
 import { getBeatId, normalizeBeat } from '../../utils/entities';
 import { apiClient, getApiErrorMessage } from './client';
@@ -9,6 +10,21 @@ export interface BeatUpdatePayload {
   tags: string[]; moods: string[]; instruments: string[]; coverFile?: File | null;
 }
 export interface BeatUploadPayload extends BeatUpdatePayload { bpm: number; coverFile: File; audioFile: File }
+export interface BeatFromAnalysisPayload {
+  analysis_id: string;
+  title: string;
+  description: string;
+  genre: string;
+  bpm: number;
+  tags: string[];
+  moods: string[];
+  instruments: string[];
+  preview_start?: number;
+  preview_end?: number;
+}
+export class BeatAnalysisExpiredError extends Error {
+  constructor() { super('This analysis has expired. Please analyze the audio again. Your form details are still here.'); this.name = 'BeatAnalysisExpiredError'; }
+}
 
 function appendMetadata(formData: FormData, payload: BeatUpdatePayload): void {
   formData.append('title', payload.title);
@@ -60,6 +76,20 @@ export async function uploadBeat(payload: BeatUploadPayload, options: { signal?:
     });
     return normalizeBeat(data);
   } catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to publish this beat.')) }
+}
+
+export async function publishBeatFromAnalysis(payload: BeatFromAnalysisPayload, options: { signal?: AbortSignal } = {}): Promise<BeatPost> {
+  try {
+    const { data } = await apiClient.post<Beat>('/api/v1/beats/from-analysis', payload, { timeout: 10 * 60 * 1000, signal: options.signal });
+    return normalizeBeat(data);
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const body = error.response?.data;
+      const detail = body && typeof body === 'object' ? JSON.stringify(body).toLowerCase() : '';
+      if (error.response?.status === 410 || detail.includes('analysis_expired') || detail.includes('analysis expired')) throw new BeatAnalysisExpiredError();
+    }
+    throw new Error(getApiErrorMessage(error, 'Unable to publish this analyzed beat.'));
+  }
 }
 
 export async function deleteBeat(_token: string, postId: string): Promise<void> {
