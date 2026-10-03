@@ -104,6 +104,21 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
   if (error.code === 'ECONNABORTED') return 'The request took too long. Check your connection and try again.';
   if (!error.response) return 'We could not connect to BeatNow. Check your internet connection.';
   const detail = error.response.data?.detail;
+  // FastAPI returns useful field or file validation details with 422 responses.
+  // Keep these visible in production so users can tell why an upload was rejected.
+  if (error.response.status === 422) {
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (Array.isArray(detail) && detail.length) {
+      return detail.map((item) => {
+        const field = item.loc?.filter((part) => part !== 'body').join('.');
+        return field ? `${field}: ${item.msg || 'Invalid value'}` : item.msg || 'Invalid value';
+      }).join('. ');
+    }
+    if (detail && typeof detail === 'object') {
+      if (typeof detail.message === 'string' && detail.message.trim()) return detail.message;
+      if (typeof detail.code === 'string' && detail.code.trim()) return detail.code;
+    }
+  }
   if (typeof detail === 'string' && import.meta.env.DEV) return detail;
   if (Array.isArray(detail) && detail.length && import.meta.env.DEV) {
     return detail.map((item) => item.msg || 'Invalid value').join(', ');

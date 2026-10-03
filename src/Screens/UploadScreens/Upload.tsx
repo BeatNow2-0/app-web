@@ -150,7 +150,7 @@ export default function Upload() {
     } catch (error) {
       if (abort.signal.aborted) return;
       setAnalysisStatus('failed');
-      setAnalysisError("We couldn't analyze this beat. You can try again or continue manually.");
+      setAnalysisError(error instanceof Error && error.message ? error.message : "We couldn't analyze this beat. You can try again or continue manually.");
     } finally {
       if (analysisController.current === abort) analysisController.current = null;
     }
