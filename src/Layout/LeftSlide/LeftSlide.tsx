@@ -1,11 +1,13 @@
 import React from 'react';
-import { BarChart3, Bookmark, Compass, Disc3, Home, Upload, Waves } from 'lucide-react';
+import { FileText, BarChart3, Bookmark, Compass, Disc3, Home, Upload, Waves } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import './LeftSlide.css';
+import { useAuth } from '../../contexts/AuthContext';
 
 const items = [
   { to: '/dashboard', label: 'Home', icon: Home },
   { to: '/explore', label: 'Explore', icon: Compass },
+  { to: '/lyrics', label: 'Lyrics', icon: FileText },
   { to: '/upload', label: 'Upload', icon: Upload },
   { to: '/library', label: 'Library', icon: Bookmark },
   { to: '/beats', label: 'My beats', icon: Disc3 },
@@ -13,12 +15,14 @@ const items = [
 ];
 
 export default function LeftSlide() {
+  const { user } = useAuth();
+  const visible = items.filter(item => user?.role === 'producer' || !['/upload','/beats','/stats'].includes(item.to));
   return <>
     <aside className="app-nav" aria-label="Primary navigation">
       <div className="nav-label"><Waves size={18} />Studio</div>
-      <nav>{items.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'active' : ''}><Icon size={20} /><span>{label}</span></NavLink>)}</nav>
-      <div className="nav-foot"><span>BEATNOW</span><small>Producer workspace</small></div>
+      <nav>{visible.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'active' : ''}><Icon size={20} /><span>{label}</span></NavLink>)}</nav>
+      <div className="nav-foot"><span>BEATNOW</span><small>Artists & producers</small></div>
     </aside>
-    <nav className="mobile-nav" aria-label="Mobile navigation">{items.slice(0, 5).map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'active' : ''}><Icon size={21} /><span>{label === 'My beats' ? 'Beats' : label}</span></NavLink>)}</nav>
+    <nav className="mobile-nav" aria-label="Mobile navigation">{visible.slice(0, 5).map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'active' : ''}><Icon size={21} /><span>{label === 'My beats' ? 'Beats' : label}</span></NavLink>)}</nav>
   </>;
 }

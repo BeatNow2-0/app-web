@@ -10,7 +10,7 @@ interface GlobalSelectProps {
 export default function GlobalSelect({ options, isSearchable = true, isMulti = false, placeholder, onChange, value }: GlobalSelectProps) {
   const normalizedValue = typeof value === 'string' ? options.find((option) => option.value === value) ?? null : value ?? (isMulti ? [] : null);
   return <Select<Option, boolean>
-    options={options} isSearchable={isSearchable} isMulti={isMulti} placeholder={placeholder} value={normalizedValue}
+    aria-label={placeholder || "Select options"} options={options} isSearchable={isSearchable} isMulti={isMulti} placeholder={placeholder} value={normalizedValue}
     onChange={(selected: MultiValue<Option> | SingleValue<Option>) => onChange?.(Array.isArray(selected) ? [...selected] : selected as Option | null)}
     classNamePrefix="bn-select"
     styles={{

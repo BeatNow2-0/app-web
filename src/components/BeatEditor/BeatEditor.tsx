@@ -4,6 +4,8 @@ import GlobalSelect from '../Select/GlobalSelect';
 import { TagsInput } from 'react-tag-input-component';
 import { genresList, instrumentsList, moodsList } from '../../constants/beatFormOptions';
 import './BeatEditor.css';
+import { licenses } from '../../constants/licenses';
+import { getBeatPlayCount } from '../../utils/entities';
 
 interface BeatEditorProps {
   beat: BeatPost;
@@ -50,6 +52,9 @@ const toMultiSelectValue = (values?: string[]) =>
 const normalizeTag = (tag: string) => (tag.startsWith('#') ? tag.replace(/\s/g, '') : `#${tag.replace(/\s/g, '')}`);
 
 export default function BeatEditor({ beat, onClose, onSave }: BeatEditorProps) {
+  const [licenseType, setLicenseType] = useState(beat.license_type || 'unavailable');
+  const [licenseTerms, setLicenseTerms] = useState(beat.license_terms || '');
+  const [visibility, setVisibility] = useState(beat.visibility || 'published');
   const [title, setTitle] = useState(beat.title || '');
   const [description, setDescription] = useState(beat.description || '');
   const [genre, setGenre] = useState(typeof beat.genre === 'string' ? beat.genre.replace(/[[\]"]/g, '').trim() : '');
@@ -90,6 +95,7 @@ export default function BeatEditor({ beat, onClose, onSave }: BeatEditorProps) {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (saving) return;
     setError(null);
 
     if (!title.trim()) {
@@ -124,6 +130,7 @@ export default function BeatEditor({ beat, onClose, onSave }: BeatEditorProps) {
     setSaving(true);
     try {
       await onSave({
+        license_type: licenseType, license_terms: licenseTerms, visibility,
         title: title.trim(),
         description: description.trim(),
         genre: genre.trim(),
@@ -141,10 +148,10 @@ export default function BeatEditor({ beat, onClose, onSave }: BeatEditorProps) {
   };
 
   const beatDate = beat.publication_date ? new Date(beat.publication_date).toLocaleDateString() : 'No date';
-  const beatPlays = beat.views || beat.plays || 0;
+  const beatPlays = getBeatPlayCount(beat);
 
   return (
-    <div className="beat-editor-overlay" role="dialog" aria-modal="true" aria-label="Edit beat" onClick={onClose}>
+    <div className="beat-editor-overlay" role="dialog" aria-modal="true" aria-label="Edit beat" onClick={() => { if (!saving) onClose(); }}>
       <div className="beat-editor-modal" onClick={(event) => event.stopPropagation()}>
         <div className="beat-editor-header">
           <div>
@@ -308,7 +315,8 @@ export default function BeatEditor({ beat, onClose, onSave }: BeatEditorProps) {
               </label>
             </div>
 
-            {error && <div className="beat-editor-error">{error}</div>}
+            <div className="beat-editor-panel"><label className="beat-editor-field">Visibility<select value={visibility} onChange={e => setVisibility(e.target.value as typeof visibility)}><option value="published">Published</option><option value="unpublished">Unpublished</option></select></label><label className="beat-editor-field">License<select value={licenseType} onChange={e => setLicenseType(e.target.value as typeof licenseType)}>{Object.entries(licenses).map(([id,license]) => <option key={id} value={id}>{license.label}</option>)}</select></label><p>{licenses[licenseType].terms}</p><label className="beat-editor-field">Producer notes<textarea maxLength={2000} value={licenseTerms} onChange={e => setLicenseTerms(e.target.value)} /></label></div>
+            {error && <div className="beat-editor-error" role="alert">{error}</div>}
 
             <div className="beat-editor-actions">
               <button type="button" className="ghost" onClick={onClose} disabled={saving}>

@@ -28,3 +28,11 @@ yarn-error.log*
 # Idea y VSCode configuraciones específicas (opcional)
 .idea/
 .vscode/
+
+.env.*
+!.env.example
+test-results/
+playwright-report/
+.e2e/
+*.tsbuildinfo
+*.timestamp-*.mjs

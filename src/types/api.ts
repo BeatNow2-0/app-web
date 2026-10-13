@@ -14,7 +14,7 @@ export interface ApiErrorPayload {
 
 export interface AuthResponse {
   access_token: string;
-  refresh_token: string;
+  refresh_token?: string;
   token_type: string;
 }
 
@@ -26,6 +26,7 @@ export interface User {
   full_name?: string | null;
   bio?: string | null;
   is_active: boolean;
+  role?: 'artist' | 'producer';
   avatar_key?: string | null;
   profile_image_url?: string | null;
   photo_profile?: string | null;
@@ -47,6 +48,7 @@ export interface Beat {
   saves: number;
   views?: number;
   plays?: number;
+  processing_status?: 'processing' | 'ready' | 'failed';
   plays_7d?: number;
   likes_7d?: number;
   saves_7d?: number;
@@ -56,19 +58,21 @@ export interface Beat {
   instruments?: string[];
   bpm?: number;
   user_id: string;
-  creator_id?: string;
   creator_username?: string | null;
   audio_format?: string;
   cover_format?: string;
-  cover_key?: string | null;
-  audio_key?: string | null;
   cover_image_url?: string | null;
+  preview_url?: string | null;
   audio_url?: string | null;
   caratula?: string | null;
   isLiked?: boolean;
   isSaved?: boolean;
   price?: number;
   sales_count?: number;
+  visibility?: 'published' | 'unpublished';
+  license_type?: 'unavailable' | 'free_noncommercial' | 'contact';
+  license_terms?: string;
+  musical_key?: string;
 }
 
 export interface PaginatedResponse<T> {
