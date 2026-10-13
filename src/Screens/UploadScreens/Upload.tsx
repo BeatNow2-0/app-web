@@ -6,8 +6,13 @@ import GlobalSelect from '../../components/Select/GlobalSelect';
 import CustomPopup from '../../components/Popup/CustomPopup';
 import { genresList, instrumentsList, moodsList } from '../../constants/beatFormOptions';
 import { analyzeBeat, discardBeatAnalysis } from '../../Model/api/beatAnalysis';
-import { BeatAnalysisExpiredError, publishBeatFromAnalysis, updateBeat, uploadBeat } from '../../Model/api/posts';
+import { fetchBeat, uploadBeat } from '../../Model/api/posts';
 import type { BeatAnalysisResponse } from '../../types/beatAnalysis';
+import { usePlayer } from '../../contexts/PlayerContext';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import { licenses } from '../../constants/licenses';
+import type { Beat } from '../../types/api';
+import { canPlayBeat } from '../../utils/entities';
 import './Upload.css';
 import './BeatAnalysis.css';
 
@@ -26,7 +31,12 @@ const withSuggestedOptions = (options: { value: string; label: string }[], sugge
 ];
 
 export default function Upload() {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); const player = usePlayer();
+  const [licenseType, setLicenseType] = useState<NonNullable<Beat['license_type']>>('unavailable');
+  const [licenseTerms, setLicenseTerms] = useState('');
+  const [visibility, setVisibility] = useState<NonNullable<Beat['visibility']>>('published');
+  const [reviewing, setReviewing] = useState(false);
+  const requestId = useRef(crypto.randomUUID());
   const controller = useRef<AbortController | null>(null);
   const analysisController = useRef<AbortController | null>(null);
   const audioInput = useRef<HTMLInputElement>(null);
@@ -45,6 +55,7 @@ export default function Upload() {
   const [terms, setTerms] = useState(false);
   const [rights, setRights] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [awaitingPreview, setAwaitingPreview] = useState(false);
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('');
   const [done, setDone] = useState(false);
@@ -56,6 +67,9 @@ export default function Upload() {
   const [manualOnly, setManualOnly] = useState(false);
   const [previewStart, setPreviewStart] = useState('');
   const [previewEnd, setPreviewEnd] = useState('');
+  const audioPreview = useMemo(() => audio ? URL.createObjectURL(audio) : '', [audio]);
+  useEffect(() => () => { if (audioPreview) { URL.revokeObjectURL(audioPreview); if (player.beat?.id === 'local-preview') player.close(); } }, [audioPreview]);
+  useUnsavedChanges(!done && Boolean(audio || title || description));
   const preview = useMemo(() => cover ? URL.createObjectURL(cover) : '', [cover]);
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
@@ -167,62 +181,39 @@ export default function Upload() {
     if (description.length > 1000) return 'Description must be 1,000 characters or less.';
     const audioError = validateAudio(audio); if (audioError) return audioError;
     const coverError = validateCover(cover); if (coverError) return coverError;
+    if (Boolean(previewStart) !== Boolean(previewEnd)) return 'Enter both preview start and end times.';
+    if (previewStart && previewEnd && (Number(previewStart) < 0 || Number(previewEnd) <= Number(previewStart) || !Number.isFinite(Number(previewStart)) || !Number.isFinite(Number(previewEnd)))) return 'Preview end must be after preview start.';
     if (!terms || !rights) return 'Accept the terms and confirm that you own the upload rights.';
     return '';
   };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (publishing || analysisStatus === 'uploading' || analysisStatus === 'analyzing') return;
+    if (publishing || awaitingPreview || analysisStatus === 'uploading' || analysisStatus === 'analyzing') return;
     const error = validate(); if (error) { setMessage(error); return; }
+    if (!reviewing) { setReviewing(true); return; }
     setPublishing(true); setProgress(0); setDone(false);
     const abort = new AbortController(); controller.current = abort;
     try {
-      let publishNotice = 'Your beat is live.';
-      if (analysisId && analysisStatus === 'completed' && !manualOnly) {
-        const published = await publishBeatFromAnalysis({
-          analysis_id: analysisId, title: title.trim(), description: description.trim(), genre,
-          bpm: Number(bpm), tags, moods, instruments,
-          ...(previewStart !== '' ? { preview_start: Number(previewStart) } : {}),
-          ...(previewEnd !== '' ? { preview_end: Number(previewEnd) } : {}),
-        }, { signal: abort.signal });
-        // The deployed from-analysis request has no cover field; attach artwork through the existing edit route.
-        if (cover) {
-          const postId = published._id || published.id || published.post_id || published.beat_id;
-          if (!postId) publishNotice = 'Your beat is live, but its cover could not be attached. You can add artwork from your catalog.';
-          else {
-            try {
-              await updateBeat(localStorage.getItem('token') || '', postId, {
-                title: title.trim(), description: description.trim(), genre, bpm: Number(bpm), tags, moods, instruments, coverFile: cover,
-              });
-            } catch {
-              publishNotice = 'Your beat is live, but its cover could not be attached. You can add artwork from your catalog.';
-            }
-          }
-        }
-      } else {
-        await uploadBeat({ title: title.trim(), description: description.trim(), genre, bpm: Number(bpm), tags, moods, instruments, coverFile: cover!, audioFile: audio! }, {
-          signal: abort.signal, onProgress: setProgress,
-        });
-      }
+      const published = await uploadBeat({ title: title.trim(), description: description.trim(), genre, bpm: Number(bpm), tags, moods, instruments, coverFile: cover!, audioFile: audio!, license_type: licenseType, license_terms: licenseTerms, visibility, musical_key: key, preview_start: previewStart ? Number(previewStart) : undefined, preview_end: previewEnd ? Number(previewEnd) : undefined, request_id: requestId.current }, { signal: abort.signal, onProgress: setProgress });
+      const confirmed = await fetchBeat(published._id || published.id || '', abort.signal);
+      if (!confirmed.cover_image_url || confirmed.title !== title.trim() || confirmed.license_type !== licenseType || confirmed.visibility !== visibility) throw new Error('Publication could not be confirmed. Check My beats before retrying.');
+      if (confirmed.processing_status === 'processing') { setAwaitingPreview(true); setMessage('Preparando preview. El beat ya aparece en My beats; vuelve a cargar el catálogo para consultar su estado.'); return; }
+      if (confirmed.processing_status !== 'ready' || !canPlayBeat(confirmed)) { setMessage('Preview no disponible. Revisa My beats antes de reintentar la publicación.'); return; }
+      requestId.current = crypto.randomUUID();
+      const publishNotice = visibility === 'published' ? 'Your beat and artwork are published.' : 'Your beat is saved as unpublished.';
       if (analysisId) void discardBeatAnalysis(analysisId);
       setAnalysisId(null);
-      setDone(true); setMessage(publishNotice);
+      setAwaitingPreview(false); setDone(true); setMessage(publishNotice);
       setTitle(''); setDescription(''); setGenre(''); setBpm(''); setKey(''); setKeyEdited(false); setTags([]); setMoods([]); setInstruments([]); setAudio(null); setCover(null); setTerms(false); setRights(false); setAnalysisResult(null); setAnalysisStatus('idle'); setPreviewStart(''); setPreviewEnd(''); setManualOnly(false);
     } catch (err) {
-      const expired = err instanceof BeatAnalysisExpiredError;
-      const errorMessage = err instanceof Error ? err.message : 'Upload failed.';
-      setMessage(errorMessage);
-      if (expired && analysisId) {
-        setAnalysisStatus('failed');
-        setAnalysisError('This analysis has expired. Please analyze the audio again. Your form details are still here.');
-      }
+      setMessage(err instanceof Error ? err.message : 'Upload failed. Check My beats before retrying.');
     } finally { controller.current = null; setPublishing(false); }
   };
 
   const drop = (event: React.DragEvent, target: 'audio' | 'cover') => {
     event.preventDefault(); setDrag(null); const file = event.dataTransfer.files[0] || null;
-    target === 'audio' ? chooseAudio(file) : chooseCover(file);
+    if (target === 'audio') chooseAudio(file); else chooseCover(file);
   };
   const result = analysisResult;
   const genreOptions = withSuggestedOptions(genresList, result?.suggested_metadata?.genre);
@@ -233,29 +224,33 @@ export default function Upload() {
 
   return <div className="page upload-page">
     <header className="page-header"><div><p className="page-eyebrow">Publish</p><h1 className="page-title">Release a new beat.</h1><p className="page-subtitle">High-quality audio, precise metadata and artwork that makes your sound recognizable.</p></div></header>
-    <form className="upload-workspace" onSubmit={submit}>
+    <form className="upload-workspace" onSubmit={submit} onChange={() => setReviewing(false)}>
       <section className="upload-files">
-        <button className={`file-drop ${drag === 'audio' ? 'dragging' : ''}`} type="button" onClick={() => audioInput.current?.click()} onDragOver={(e) => { e.preventDefault(); setDrag('audio'); }} onDragLeave={() => setDrag(null)} onDrop={(e) => drop(e, 'audio')}>
-          <input ref={audioInput} type="file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/wav" onChange={(e) => chooseAudio(e.target.files?.[0] || null)} />
+        <button className={`file-drop ${drag === 'audio' ? 'dragging' : ''}`} type="button" disabled={publishing} onClick={() => audioInput.current?.click()} onDragOver={(e) => { e.preventDefault(); setDrag('audio'); }} onDragLeave={() => setDrag(null)} onDrop={(e) => drop(e, 'audio')}>
+          <input aria-label="Audio file" ref={audioInput} type="file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/wav" onChange={(e) => chooseAudio(e.target.files?.[0] || null)} />
           <FileAudio /><strong>{audio ? audio.name : 'Drop your audio here'}</strong><span>{audio ? `${sizeLabel(audio.size)} · ${audio.name.split('.').pop()?.toUpperCase()} · Click to replace` : 'MP3, M4A or WAV · max 50 MB'}</span>
         </button>
-        <button className={`file-drop cover-drop ${drag === 'cover' ? 'dragging' : ''}`} type="button" onClick={() => coverInput.current?.click()} onDragOver={(e) => { e.preventDefault(); setDrag('cover'); }} onDragLeave={() => setDrag(null)} onDrop={(e) => drop(e, 'cover')}>
-          <input ref={coverInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => chooseCover(e.target.files?.[0] || null)} />{preview ? <img src={preview} alt="Cover preview" /> : <ImagePlus />}
+        <button className={`file-drop cover-drop ${drag === 'cover' ? 'dragging' : ''}`} type="button" disabled={publishing} onClick={() => coverInput.current?.click()} onDragOver={(e) => { e.preventDefault(); setDrag('cover'); }} onDragLeave={() => setDrag(null)} onDrop={(e) => drop(e, 'cover')}>
+          <input aria-label="Cover image" ref={coverInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => chooseCover(e.target.files?.[0] || null)} />{preview ? <img src={preview} alt="Cover preview" /> : <ImagePlus />}
           <strong>{cover ? cover.name : 'Add cover artwork'}</strong><span>{cover ? `${sizeLabel(cover.size)} · Click to replace` : 'JPEG, PNG or WebP · max 10 MB'}</span>{cover && <span className="cover-remove" onClick={(e) => { e.stopPropagation(); setCover(null); }}><X size={16} /></span>}
         </button>
       </section>
       <section className="upload-form-panel">
+        {audioPreview && <button className="button button--secondary" type="button" onClick={() => player.playBeat({ id: 'local-preview', title: title || audio!.name, user_id: '', publication_date: '', likes: 0, saves: 0, audio_url: audioPreview, cover_image_url: preview })}>Listen to preview</button>}
+        <div className="field-pair"><label><span>Preview start (seconds)</span><input className="field-control" type="number" min="0" step="0.1" value={previewStart} onChange={e => setPreviewStart(e.target.value)} placeholder="Optional" /></label><label><span>Preview end (seconds)</span><input className="field-control" type="number" min="0" step="0.1" value={previewEnd} onChange={e => setPreviewEnd(e.target.value)} placeholder="Optional" /></label></div>
+        <fieldset disabled={publishing} className="upload-fields">
         <div className="form-section analyzer-section">
-          <div><h2>BeatNow analyzes it</h2><p>Get suggested metadata and a technical snapshot before publishing.</p></div>
+          <div><h2>BeatNow analyzes it</h2><p>Inspect measured audio properties. Musical estimates may be unavailable.</p></div>
           {audio && <div className="analysis-file"><FileAudio size={17} /><span>{audio.name} · {sizeLabel(audio.size)} · {audio.name.split('.').pop()?.toUpperCase()}</span></div>}
           <div className="analysis-actions">
-            <button className="button" type="button" onClick={runAnalysis} disabled={!audio || analysisStatus === 'uploading' || analysisStatus === 'analyzing'}>
+            <button className="button" type="button" onClick={runAnalysis} disabled={publishing || !audio || analysisStatus === 'uploading' || analysisStatus === 'analyzing'}>
               {(analysisStatus === 'uploading' || analysisStatus === 'analyzing') && <LoaderCircle className="analysis-spinner" size={17} />}
               {analysisStatus === 'completed' ? 'Analyze again' : analysisStatus === 'uploading' || analysisStatus === 'analyzing' ? 'Analyzing your beat…' : analysisStatus === 'failed' ? 'Try again' : 'Analyze beat'}
             </button>
             {analysisStatus === 'failed' && <button className="button button--secondary" type="button" onClick={() => { setManualOnly(true); setAnalysisStatus('idle'); setAnalysisError(''); }}>Continue manually</button>}
             {manualOnly && <span className="analysis-manual-note">Manual publishing is ready.</span>}
           </div>
+          {(analysisStatus === 'uploading' || analysisStatus === 'analyzing') && <button className="button button--secondary" type="button" onClick={() => { analysisController.current?.abort(); setAnalysisStatus('idle'); }}>Cancel analysis</button>}
           {(analysisStatus === 'uploading' || analysisStatus === 'analyzing') && <p className="analysis-status" role="status">{analysisStatus === 'uploading' ? 'Uploading audio securely…' : 'Analyzing your beat. This may take a few seconds.'}</p>}
           {analysisStatus === 'failed' && <p className="analysis-error" role="alert"><AlertTriangle size={17} />{analysisError || "We couldn't analyze this beat. You can try again or continue manually."}</p>}
         </div>
@@ -276,7 +271,7 @@ export default function Upload() {
             const value = result.frequency_balance?.[field];
             return value == null ? null : <div className="frequency-row" key={field}><span>{label}</span><div><i style={{ width: `${Math.max(0, Math.min(100, value * 100))}%` }} /></div><small>{Math.round(value * 100)}%</small></div>;
           })}</div></div>}
-          {result.preview?.start_seconds != null && result.preview.end_seconds != null && <div className="recommended-preview"><div><h3>Recommended preview</h3><strong>{timeLabel(Number(previewStart || result.preview.start_seconds))} → {timeLabel(Number(previewEnd || result.preview.end_seconds))}</strong></div><label>Start (sec)<input className="field-control" type="number" min="0" value={previewStart} onChange={(e) => setPreviewStart(e.target.value)} /></label><label>End (sec)<input className="field-control" type="number" min="0" value={previewEnd} onChange={(e) => setPreviewEnd(e.target.value)} /></label></div>}
+          {result.preview?.start_seconds != null && result.preview.end_seconds != null && <div className="recommended-preview"><div><h3>Recommended preview</h3><strong>{timeLabel(Number(previewStart || result.preview.start_seconds))} → {timeLabel(Number(previewEnd || result.preview.end_seconds))}</strong></div><p>Suggested listening section. Publishing keeps the full audio.</p></div>}
           {!!result.insights?.length && <div className="analysis-insights"><h3>Suggestions</h3>{result.insights.map((insight, index) => <article key={`${insight.title || insight.message || 'insight'}-${index}`} className={`analysis-insight ${insight.type === 'warning' ? 'is-warning' : ''}`}><strong>{insight.type === 'warning' && <AlertTriangle size={16} />}{insight.title || (insight.type === 'warning' ? 'Suggestion' : 'Insight')}</strong>{(insight.message || insight.description) && <p>{insight.message || insight.description}</p>}{insight.suggestion && <p><b>Suggestion:</b> {insight.suggestion}</p>}</article>)}</div>}
         </section>}
 
@@ -289,7 +284,10 @@ export default function Upload() {
           <label><span>Instruments</span><GlobalSelect options={instrumentsList} isMulti value={instruments.map((value) => ({ value, label: value }))} onChange={(selected) => setInstruments(Array.isArray(selected) ? selected.map((item) => item.value).slice(0, 20) : [])} placeholder="Choose instruments" /></label>
         </div>
         <div className="form-section"><div><h2>Story and rights</h2><p>Add context for artists and confirm ownership.</p></div><label><span>Description <small>{description.length}/1000</small></span><textarea className="field-control" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} rows={6} placeholder="Describe the vibe, vocal pocket or inspiration…" /></label><label className="check-line"><input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} /><span>I accept BeatNow’s terms of use.</span></label><label className="check-line"><input type="checkbox" checked={rights} onChange={(e) => setRights(e.target.checked)} /><span>I own or control the rights to this audio and artwork.</span></label></div>
-        <div className="publish-panel">{publishing && <div className="upload-progressbar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ width: `${progress}%` }} /></div>}<div><UploadCloud /><div><strong>{publishing ? analysisId ? 'Publishing analyzed beat…' : `Uploading ${progress}%` : 'Ready to publish?'}</strong><span>{publishing ? 'Keep this tab open until publishing completes.' : 'Review your files and metadata before publishing.'}</span></div></div><div className="publish-actions">{publishing && <button className="button button--secondary" type="button" onClick={() => controller.current?.abort()}>Cancel</button>}<button className="button" type="submit" disabled={publishing || analysisStatus === 'uploading' || analysisStatus === 'analyzing'}>{publishing ? 'Publishing…' : 'Publish beat'}</button></div></div>
+        <div className="form-section"><h2>Availability and permission</h2><label>Visibility<select className="field-control" value={visibility} onChange={e => setVisibility(e.target.value as typeof visibility)}><option value="published">Published</option><option value="unpublished">Unpublished</option></select></label><label>License<select className="field-control" value={licenseType} onChange={e => setLicenseType(e.target.value as typeof licenseType)}>{Object.entries(licenses).map(([id,license]) => <option key={id} value={id}>{license.label}</option>)}</select></label><p>{licenses[licenseType].terms}</p><label>Producer notes<textarea className="field-control" maxLength={2000} value={licenseTerms} onChange={e => setLicenseTerms(e.target.value)} placeholder="Contact instructions or attribution details" /></label></div>
+        {reviewing && <section className="publication-preview" aria-label="Publication preview"><h2>Review your beat</h2><strong>{title}</strong><p>{genre} · {bpm} BPM · {visibility}</p><p>{description}</p><p>{licenses[licenseType].label}: {licenses[licenseType].terms}</p><p>{licenseTerms}</p><p>{audio?.name} · {cover?.name}</p></section>}
+        </fieldset>
+        <div className="publish-panel">{publishing && <div className="upload-progressbar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ width: `${progress}%` }} /></div>}<div><UploadCloud /><div><strong>{publishing ? analysisId ? 'Publishing analyzed beat…' : `Uploading ${progress}%` : awaitingPreview ? 'Preparando preview' : 'Ready to publish?'}</strong><span>{publishing ? 'Keep this tab open until publishing completes.' : awaitingPreview ? 'Check My beats after the preview is ready.' : 'Review your files and metadata before publishing.'}</span></div></div><div className="publish-actions">{publishing && <button className="button button--secondary" type="button" onClick={() => controller.current?.abort()}>Cancel</button>}<button className="button" type="submit" disabled={publishing || awaitingPreview || analysisStatus === 'uploading' || analysisStatus === 'analyzing'}>{publishing ? 'Publishing…' : reviewing ? 'Confirm publication' : 'Review beat'}</button></div></div>
       </section>
     </form>
     {message && <CustomPopup message={message} onClose={() => { setMessage(''); if (done) navigate('/beats'); }} />}

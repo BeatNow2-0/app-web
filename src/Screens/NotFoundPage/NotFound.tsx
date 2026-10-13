@@ -4,7 +4,6 @@ import "./NotFound.css";
 import logo from "../../assets/Logo.png";
 
 function NotFound() {
-  const token = localStorage.getItem("token");
 
   return (
     <div className="notfound-page">

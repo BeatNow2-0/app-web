@@ -3,7 +3,7 @@ import './LoginPage.css';
 import logo2 from '../../assets/Frame 2.png';
 import { Link, useNavigate } from 'react-router-dom';
 import CustomPopup from '../../components/Popup/CustomPopup';
-import UserSingleton from '../../Model/UserSingleton';
+import { useAuth } from '../../contexts/AuthContext';
 import LoadingPopup from '../../components/Loading/Loading';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import {
@@ -12,13 +12,14 @@ import {
   fetchUserProfile,
   clearStoredSession,
   persistSession,
+  rememberVerificationToken,
   requestLogin,
-  UserData,
 } from '../../Model/api/auth';
 import { Eye, EyeOff } from 'lucide-react';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [credentials, setCredentials] = useState<Credentials>({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -34,20 +35,6 @@ function LoginPage() {
     setShowPopup(false);
   };
 
-  const navigateToDashboard = (accessToken: string) => {
-    navigate('/dashboard', { state: { token: accessToken } });
-  };
-
-  const populateUser = (userData: UserData) => {
-    const user = UserSingleton.getInstance();
-    user.setFullName(userData.full_name);
-    user.setUsername(userData.username);
-    user.setEmail(userData.email);
-    user.setId(userData.id);
-    user.setPhotoProfile(userData.profile_image_url || '/avatar-fallback.svg');
-    user.setIsActive(userData.is_active);
-  };
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
@@ -61,17 +48,15 @@ function LoginPage() {
       const session = await requestLogin(credentials);
       persistSession(session);
       const profile = await fetchUserProfile(session.access_token);
-      populateUser(profile);
-      navigateToDashboard(session.access_token);
+      setUser(profile);
+      setCredentials({ username: '', password: '' });
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       clearStoredSession();
       if (error instanceof AccountNotVerifiedError) {
+        rememberVerificationToken(error.verificationToken);
         navigate('/confirm-email', {
           replace: true,
-          state: {
-            verificationToken: error.verificationToken,
-            credentials,
-          },
         });
         return;
       }
@@ -92,7 +77,7 @@ function LoginPage() {
       >
         <div className="auth-content">
           <div>
-            <p className="page-eyebrow">Producer access</p>
+            <p className="page-eyebrow">Artist & producer access</p>
             <h1 className="auth-title">Welcome back.</h1>
             <p className="auth-subtitle">Sign in to manage your sound and discover what is next.</p>
           </div>

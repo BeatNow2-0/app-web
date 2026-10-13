@@ -15,7 +15,7 @@ export default function GlobalPlayer() {
   if (!player.beat) return null;
   return (
     <section className="global-player" aria-label="Now playing">
-      <img src={getCoverUrl(player.beat)} alt="" />
+      <img src={getCoverUrl(player.beat)} onError={event => { event.currentTarget.src = "/cover-fallback.svg"; }} alt="" />
       <div className="player-track-copy">
         <strong>{player.beat.title}</strong>
         <span>{player.beat.creator_username || 'BeatNow creator'}</span>
@@ -27,7 +27,7 @@ export default function GlobalPlayer() {
       <input className="player-progress" aria-label="Playback position" type="range" min={0} max={player.duration || 0} step={0.1} value={Math.min(player.currentTime, player.duration || 0)} onChange={(e) => player.seek(Number(e.target.value))} />
       <span className="player-time">{formatTime(player.duration)}</span>
       <div className="player-volume"><Volume2 size={18} /><input aria-label="Volume" type="range" min={0} max={1} step={0.05} value={player.volume} onChange={(e) => player.setVolume(Number(e.target.value))} /></div>
-      {player.error && <span className="player-error" title={player.error}>Audio error</span>}
+      {player.error && <span className="player-error" role="alert">{player.error}</span>}
       <button className="player-close" type="button" onClick={player.close} aria-label="Close player"><X size={18} /></button>
     </section>
   );

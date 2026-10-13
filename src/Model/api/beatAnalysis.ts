@@ -15,7 +15,7 @@ export async function analyzeBeat(file: File, options: { signal?: AbortSignal; o
     if (!data?.analysis_id) throw new Error('The analysis response did not include an analysis ID.');
     return data;
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'We could not analyze this beat.'));
+    throw new Error(getApiErrorMessage(error, 'We could not analyze this beat.'), { cause: error });
   }
 }
 

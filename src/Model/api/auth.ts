@@ -1,6 +1,6 @@
 import type { AuthResponse, User } from '../../types/api';
 import { getUserId } from '../../utils/entities';
-import { apiClient, clearSessionTokens, getApiErrorMessage, getRefreshToken, persistSessionTokens } from './client';
+import { apiClient, clearSessionTokens, getApiErrorMessage, persistSessionTokens } from './client';
 
 export interface Credentials { username: string; password: string }
 export type UserData = User & { id: string; full_name: string };
@@ -48,6 +48,14 @@ export class ConfirmationRateLimitError extends Error {
   }
 }
 
+// Email verification credentials are deliberately kept only in JS memory. A
+// reload requires signing in again, which is preferable to persisting a bearer
+// credential in sessionStorage, localStorage or browser history.
+let pendingVerificationToken = '';
+export function rememberVerificationToken(token: string): void { pendingVerificationToken = token; }
+export function getVerificationTokenFromMemory(): string { return pendingVerificationToken; }
+export function forgetVerificationToken(): void { pendingVerificationToken = ''; }
+
 function normalizeUser(user: User): UserData {
   return {
     ...user,
@@ -60,7 +68,7 @@ function normalizeUser(user: User): UserData {
 export async function requestLogin({ username, password }: Credentials): Promise<AuthResponse> {
   const formData = new URLSearchParams({ username: username.trim(), password });
   try {
-    const { data } = await apiClient.post<AuthResponse>('/v1/api/users/login', formData, {
+    const { data } = await apiClient.post<AuthResponse>('/v1/api/users/web/login', formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       skipAuthRefresh: true,
     });
@@ -70,12 +78,12 @@ export async function requestLogin({ username, password }: Credentials): Promise
     const status = response?.status;
     const errorCode = getApiErrorCode(response);
     const verificationToken = getVerificationToken(response);
-    if (status === 401) throw new Error('Incorrect username or password.');
+    if (status === 401) throw new Error('Incorrect username or password.', { cause: error });
     if (status === 403 && errorCode === 'ACCOUNT_NOT_VERIFIED' && verificationToken) {
       throw new AccountNotVerifiedError(verificationToken);
     }
-    if (status === 403) throw new Error('This account is not active yet. Check your email for activation instructions.');
-    throw new Error(getApiErrorMessage(error, 'Unable to sign in.'));
+    if (status === 403) throw new Error('This account is not active yet. Check your email for activation instructions.', { cause: error });
+    throw new Error(getApiErrorMessage(error, 'Unable to sign in.'), { cause: error });
   }
 }
 
@@ -87,12 +95,8 @@ export function persistSession(session: AuthResponse): void { persistSessionToke
 export function clearStoredSession(): void { clearSessionTokens() }
 
 export async function requestLogout(): Promise<void> {
-  const refreshToken = getRefreshToken();
-  try {
-    if (refreshToken) await apiClient.post('/v1/api/users/logout', { refresh_token: refreshToken });
-  } finally {
-    clearSessionTokens();
-  }
+  try { await apiClient.post('/v1/api/users/web/logout', undefined, { skipAuthRefresh: true }); }
+  finally { clearSessionTokens(); }
 }
 
 export async function fetchUserProfile(_token?: string, signal?: AbortSignal): Promise<UserData> {
@@ -111,7 +115,7 @@ export async function fetchPublicProfile(userId: string): Promise<User> {
     const { data } = await apiClient.get<User>(`/v1/api/users/profile/${encodeURIComponent(userId)}`);
     return data;
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to load this profile.'));
+    throw new Error(getApiErrorMessage(error, 'Unable to load this profile.'), { cause: error });
   }
 }
 
@@ -120,7 +124,7 @@ export async function updateUserProfile(_token: string, payload: ProfileUpdatePa
     const { data } = await apiClient.put<User>('/v1/api/users/users/me', payload);
     return normalizeUser(data);
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to update your profile.'));
+    throw new Error(getApiErrorMessage(error, 'Unable to update your profile.'), { cause: error });
   }
 }
 
@@ -134,7 +138,7 @@ export async function uploadProfilePhoto(_token: string, file: File): Promise<Us
     });
     return fetchUserProfile();
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to update your profile photo.'));
+    throw new Error(getApiErrorMessage(error, 'Unable to update your profile photo.'), { cause: error });
   }
 }
 
@@ -143,31 +147,31 @@ export async function resetProfilePhoto(_token: string): Promise<UserData> {
     await apiClient.delete('/v1/api/users/delete_photo_profile');
     return fetchUserProfile();
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Unable to remove your profile photo.'));
+    throw new Error(getApiErrorMessage(error, 'Unable to remove your profile photo.'), { cause: error });
   }
 }
 
 export async function deleteAccount(): Promise<void> {
   try { await apiClient.delete('/v1/api/users/delete') }
-  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to delete your account.')) }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to delete your account.'), { cause: error }) }
 }
 
 export async function registerUser(payload: RegistrationPayload): Promise<User> {
   try {
-    const { data } = await apiClient.post<User | RegistrationResponse>('/v1/api/users/register', payload);
+    const { data } = await apiClient.post<User | RegistrationResponse>('/v1/api/users/register', payload, { skipAuthRefresh: true });
     return getRegisteredUser(data);
   } catch (error) {
     const response = (error as { response?: { status?: number; data?: { detail?: unknown } } }).response;
     if (response?.status === 400 && typeof response.data?.detail === 'string' && /username|email/i.test(response.data.detail)) {
-      throw new Error('That username or email is already in use.');
+      throw new Error('That username or email is already in use.', { cause: error });
     }
-    throw new Error(getApiErrorMessage(error, 'Registration failed. Please try again.'));
+    throw new Error(getApiErrorMessage(error, 'Registration failed. Please try again.'), { cause: error });
   }
 }
 
 export async function registerUserForConfirmation(payload: RegistrationPayload): Promise<RegistrationResponse> {
   try {
-    const { data } = await apiClient.post<User | RegistrationResponse>('/v1/api/users/register', payload);
+    const { data } = await apiClient.post<User | RegistrationResponse>('/v1/api/users/register', payload, { skipAuthRefresh: true });
     const verificationToken = getVerificationToken({ data: data as ApiErrorResponse['data'] });
     if (!verificationToken) {
       throw new Error('BeatNow did not return a verification token for this account.');
@@ -178,13 +182,13 @@ export async function registerUserForConfirmation(payload: RegistrationPayload):
     if (error instanceof Error && error.message.includes('verification token')) throw error;
     const response = (error as { response?: { status?: number; data?: { detail?: unknown } } }).response;
     if (response?.status === 400 && typeof response.data?.detail === 'string' && /username|email/i.test(response.data.detail)) {
-      throw new Error('That username or email is already in use.');
+      throw new Error('That username or email is already in use.', { cause: error });
     }
-    throw new Error(getApiErrorMessage(error, 'Registration failed. Please try again.'));
+    throw new Error(getApiErrorMessage(error, 'Registration failed. Please try again.'), { cause: error });
   }
 }
 
-export async function checkAvailability(_field?: 'email' | 'username', _value?: string): Promise<boolean> { return true }
+
 
 export async function sendConfirmationEmail(token: string): Promise<ConfirmationEmailResponse> {
   try {
@@ -193,23 +197,23 @@ export async function sendConfirmationEmail(token: string): Promise<Confirmation
   } catch (error) {
     const retryAfter = getRetryAfter((error as { response?: ApiErrorResponse }).response);
     if (retryAfter) throw new ConfirmationRateLimitError(retryAfter);
-    throw new Error(getApiErrorMessage(error, 'Unable to send a new confirmation code.'));
+    throw new Error(getApiErrorMessage(error, 'Unable to send a new confirmation code.'), { cause: error });
   }
 }
 
 export async function confirmEmailCode(token: string, code: string): Promise<void> {
   try { await apiClient.post('/v1/api/mail/confirmation', { code }, getVerificationAuthConfig(token)) }
-  catch (error) { throw new Error(getApiErrorMessage(error, 'The code is invalid or expired.')) }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'The code is invalid or expired.'), { cause: error }) }
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  try { await apiClient.post('/v1/api/mail/send-password-reset', { email }) }
-  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to request a password reset.')) }
+  try { await apiClient.post('/v1/api/mail/send-password-reset', { email }, { skipAuthRefresh: true }) }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to request a password reset.'), { cause: error }) }
 }
 
 export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
-  try { await apiClient.post('/v1/api/mail/password-change', { token, new_password: newPassword }) }
-  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to change your password.')) }
+  try { await apiClient.post('/v1/api/mail/password-change', { token, new_password: newPassword }, { skipAuthRefresh: true }) }
+  catch (error) { throw new Error(getApiErrorMessage(error, 'Unable to change your password.'), { cause: error }) }
 }
 
 declare module 'axios' {

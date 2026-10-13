@@ -16,10 +16,6 @@ const LoadingPopup: React.FC<LoadingPopupProps> = ({ message, detail, onCancel }
         setIsVisible(true);
     }, []);
 
-    const handleClose = () => {
-        setIsVisible(false);
-    };
-
     return (
         <div className={`loading-popup ${isVisible ? 'visible' : ''}`}>
             <div className="loading-popup-container">

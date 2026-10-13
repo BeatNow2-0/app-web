@@ -1,4 +1,4 @@
-import React, { FormEvent, useEffect, useMemo, useState } from 'react';
+import React, { FormEvent, useEffect, useState } from 'react';
 import './EmailConfirmationPage.css';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { MailCheck, RefreshCw } from 'lucide-react';
@@ -6,26 +6,18 @@ import logo2 from '../../assets/Frame 2.png';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import CustomPopup from '../../components/Popup/CustomPopup';
 import LoadingPopup from '../../components/Loading/Loading';
-import UserSingleton from '../../Model/UserSingleton';
 import {
   AccountNotVerifiedError,
   ConfirmationRateLimitError,
-  Credentials,
-  UserData,
   clearStoredSession,
   confirmEmailCode,
-  fetchUserProfile,
-  persistSession,
-  requestLogin,
+  forgetVerificationToken,
+  getVerificationTokenFromMemory,
   sendConfirmationEmail,
 } from '../../Model/api/auth';
 
-const VERIFICATION_TOKEN_STORAGE_KEY = 'beatnow_verification_token';
-
 type ConfirmationState = {
-  verificationToken?: string;
   email?: string;
-  credentials?: Credentials;
 };
 
 function EmailConfirmationPage() {
@@ -38,15 +30,7 @@ function EmailConfirmationPage() {
   const [message, setMessage] = useState('');
   const [showPopup, setShowPopup] = useState(false);
 
-  const verificationToken = useMemo(() => {
-    return routeState?.verificationToken || sessionStorage.getItem(VERIFICATION_TOKEN_STORAGE_KEY) || '';
-  }, [routeState?.verificationToken]);
-
-  useEffect(() => {
-    if (routeState?.verificationToken) {
-      sessionStorage.setItem(VERIFICATION_TOKEN_STORAGE_KEY, routeState.verificationToken);
-    }
-  }, [routeState?.verificationToken]);
+  const verificationToken = getVerificationTokenFromMemory();
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -56,28 +40,9 @@ function EmailConfirmationPage() {
     return () => window.clearInterval(interval);
   }, [cooldown]);
 
-  const populateUser = (userData: UserData) => {
-    const user = UserSingleton.getInstance();
-    user.setFullName(userData.full_name);
-    user.setUsername(userData.username);
-    user.setEmail(userData.email);
-    user.setId(userData.id);
-    user.setPhotoProfile(userData.profile_image_url || '/avatar-fallback.svg');
-    user.setIsActive(userData.is_active);
-  };
-
   const signInAfterConfirmation = async () => {
-    if (!routeState?.credentials) {
-      navigate('/login', { replace: true });
-      return;
-    }
-
-    const session = await requestLogin(routeState.credentials);
-    persistSession(session);
-    const profile = await fetchUserProfile(session.access_token);
-    populateUser(profile);
-    sessionStorage.removeItem(VERIFICATION_TOKEN_STORAGE_KEY);
-    navigate('/dashboard', { replace: true, state: { token: session.access_token } });
+    forgetVerificationToken();
+    navigate('/login', { replace: true });
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -91,7 +56,7 @@ function EmailConfirmationPage() {
       return;
     }
 
-    if (!trimmedCode) {
+    if (!/^\d{6}$/.test(trimmedCode)) {
       setMessage('Enter the confirmation code from your email.');
       setShowPopup(true);
       return;
@@ -165,7 +130,7 @@ function EmailConfirmationPage() {
               value={code}
               onChange={(event) => setCode(event.target.value)}
               autoComplete="one-time-code"
-              maxLength={12}
+              maxLength={6}
               placeholder="000000"
             /></label>
 

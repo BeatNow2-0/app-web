@@ -1,4 +1,4 @@
-import React, { ChangeEvent, FocusEvent, FormEvent, useState } from 'react';
+import React, { ChangeEvent, FormEvent, useState } from 'react';
 import './SignUpPage.css';
 import { Link, useNavigate } from 'react-router-dom';
 import logo2 from '../../assets/Frame 2.png';
@@ -6,7 +6,7 @@ import CustomPopup from '../../components/Popup/CustomPopup';
 import LoadingPopup from '../../components/Loading/Loading';
 import AuthLayout from '../../components/AuthLayout/AuthLayout';
 import {
-  checkAvailability,
+  rememberVerificationToken,
   registerUserForConfirmation,
 } from '../../Model/api/auth';
 import { Eye, EyeOff } from 'lucide-react';
@@ -27,43 +27,16 @@ function SignUpPage() {
   const [showLoading, setShowLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [message, setMessage] = useState('');
-  const [emailAvailable, setEmailAvailable] = useState(true);
-  const [usernameAvailable, setUsernameAvailable] = useState(true);
   const [showPasswords, setShowPasswords] = useState(false);
 
   const handleFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name as FieldName]: value }));
-    if (name === 'email') {
-      setEmailAvailable(true);
-    }
-    if (name === 'username') {
-      setUsernameAvailable(true);
-    }
+
   };
 
   const handleClose = () => {
     setShowPopup(false);
-  };
-
-  const handleAvailabilityBlur = async (event: FocusEvent<HTMLInputElement>) => {
-    const { name, value } = event.target;
-    if (name !== 'email' && name !== 'username') {
-      return;
-    }
-
-    const field = name as 'email' | 'username';
-    const isAvailable = await checkAvailability(field, value);
-    if (field === 'email') {
-      setEmailAvailable(isAvailable);
-    } else {
-      setUsernameAvailable(isAvailable);
-    }
-
-    if (!isAvailable && value) {
-      setMessage(field === 'email' ? 'This email is already registered.' : 'This username is already taken.');
-      setShowPopup(true);
-    }
   };
 
   const validateForm = () => {
@@ -81,12 +54,6 @@ function SignUpPage() {
     }
     if (form.confirmPassword !== form.password) {
       return 'Passwords do not match.';
-    }
-    if (!emailAvailable) {
-      return 'This email is already registered.';
-    }
-    if (!usernameAvailable) {
-      return 'This username is already taken.';
     }
     return null;
   };
@@ -112,15 +79,11 @@ function SignUpPage() {
         password: form.password,
       };
       const registration = await registerUserForConfirmation(payload);
+      rememberVerificationToken(registration.verification_token);
       navigate('/confirm-email', {
         replace: true,
         state: {
-          verificationToken: registration.verification_token,
           email: form.email,
-          credentials: {
-            username: form.username,
-            password: form.password,
-          },
         },
       });
     } catch (error) {
@@ -166,7 +129,6 @@ function SignUpPage() {
                 name="username"
                 value={form.username}
                 onChange={handleFieldChange}
-                onBlur={handleAvailabilityBlur}
                 placeholder="producer_name"
                 autoComplete="username"
                 maxLength={32}
@@ -177,7 +139,6 @@ function SignUpPage() {
                 name="email"
                 value={form.email}
                 onChange={handleFieldChange}
-                onBlur={handleAvailabilityBlur}
                 placeholder="you@example.com"
                 autoComplete="email"
                 maxLength={254}
